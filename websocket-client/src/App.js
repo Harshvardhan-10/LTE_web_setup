@@ -4,9 +4,8 @@ const App = () => {
     const [ws, setWs] = useState(null);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
-
     useEffect(() => {
-        const websocket = new WebSocket("ws://16.170.232.96:3000");
+        const websocket = new WebSocket("ws://13.60.20.183:3000");
 
         websocket.onopen = () => {
             console.log("WebSocket connection established");
@@ -14,11 +13,12 @@ const App = () => {
 
         websocket.onmessage = async (event) => {
             let receivedData;
+	    let flag = 0;
 
             // Check if the data is a Blob
             if (event.data instanceof Blob) {
                 console.log("Received a Blob:", event.data);
-
+		flag = 1;
                 try {
                     // Convert Blob to text
                     const text = await event.data.text();
@@ -34,13 +34,29 @@ const App = () => {
                     console.error("Error converting Blob to text:", error);
                     return;
                 }
-            } else {
-                receivedData = event.data;
+            }
+	    else {
+                const text = event.data;
+		if(text.slice(-1) === '}'){
+			console.log("Probably received JSON:", event.data);
+			try {
+				receivedData = JSON.parse(text);
+				flag = 1;
+			} catch(error) {
+				receivedData = text;
+				flag = 0;
+				console.log("NOT JSON:", text);
+			}
+		}
+		else {
+			receivedData = text;
+			flag = 0;
+		}
             }
 
             console.log("Parsed data:", receivedData);
-
-            if (typeof receivedData === "object" && receivedData !== null) {
+	    console.log(typeof receivedData); 
+            if (typeof receivedData === "object" && receivedData !== null && flag === 1) {
                 // If it's an object, format key-value pairs
                 setMessages((prev) => [
                     ...prev,
@@ -48,7 +64,8 @@ const App = () => {
                         .map(([key, value]) => `${key}: ${value}`)
                         .join("\n"),
                 ]);
-            } else {
+            }
+	    else {
                 // If it's plain text, display as-is
                 setMessages((prev) => [...prev, receivedData]);
             }
@@ -76,7 +93,7 @@ const App = () => {
 
     return (
         <div>
-            <h1>WebSocket Chat</h1>
+            <h1>LTE Data Transmission</h1>
             <textarea
                 rows={10}
                 cols={50}
