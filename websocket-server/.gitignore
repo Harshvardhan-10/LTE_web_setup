@@ -11,6 +11,9 @@
 # production
 /build
 
+# AWS Certs
+/certs
+
 # misc
 .DS_Store
 .env
