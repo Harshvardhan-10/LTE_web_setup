@@ -1,8 +1,8 @@
 require('dotenv').config();
 const express = require("express");
 const http = require("http");
-const WebSocket = require("ws");
 const mysql = require("mysql2");
+const awsIot = require('aws-iot-device-sdk');
 
 // Database configuration
 const db = mysql.createConnection({
@@ -23,54 +23,57 @@ db.connect((err) => {
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 
 app.use(express.json()); // Middleware to parse JSON bodies
 
-// WebSocket message broadcast
-function broadcast(data) {
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(data);
+// AWS IoT Device Configuration
+const device = awsIot.device({
+    keyPath: process.env.AWS_IOT_KEY_PATH, // Path to private key
+    certPath: process.env.AWS_IOT_CERT_PATH, // Path to device certificate
+    caPath: process.env.AWS_IOT_CA_PATH, // Path to root CA certificate
+    clientId: process.env.AWS_IOT_CLIENT_ID, // Unique client ID for your device
+    host: process.env.AWS_IOT_ENDPOINT, // AWS IoT endpoint
+});
+
+// AWS IoT Events
+device.on('connect', () => {
+    console.log('Connected to AWS IoT Core');
+    device.subscribe('lte/data'); // Subscribe to the topic where LTE module sends data
+});
+
+device.on('message', (topic, payload) => {
+    console.log(`Message received on topic ${topic}: ${payload.toString()}`);
+    const data = JSON.parse(payload.toString()); // Parse the incoming message
+
+    // Save data to the database
+    const query = "INSERT INTO LTEdata (field1, field2, field3, field4, field5, field6, field7, field8, field9, field10) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const values = [data.field1, data.field2, data.field3, data.field4, data.field5, data.field6, data.field7, data.field8, data.field9, data.field10];
+
+    db.query(query, values, (err, result) => {
+        if (err) {
+            return console.error("Failed to insert data into MySQL:", err);
         }
-    });
-}
-
-// WebSocket server
-wss.on("connection", (ws) => {
-    console.log("Client connected");
-
-    ws.on("message", (message) => {
-        console.log("Received from WebSocket client:", message);
-        // Broadcast message to all connected WebSocket clients
-        broadcast(message);
-    });
-
-    ws.on("close", () => {
-        console.log("Client disconnected");
+        console.log("Data stored in MySQL:", result);
     });
 });
 
-// HTTP POST endpoint
+// HTTP POST endpoint (optional, can still be used if needed)
 app.post("/data", (req, res) => {
     const data = req.body; // Assume the POST body contains JSON data
-    console.log("Received from LTE module:", data);
+    console.log("Received from LTE module (HTTP):", data);
 
     // Save the data to the database
     const query = "INSERT INTO LTEdata (field1, field2, field3, field4, field5, field6, field7, field8, field9, field10) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    const values = [data.field1, data.field2, data.field3, data.field4, data.field5, data.field6, data.field7, data.field8, data.field9, data.field10]; // Replace with your actual column names and values
+    const values = [data.field1, data.field2, data.field3, data.field4, data.field5, data.field6, data.field7, data.field8, data.field9, data.field10];
 
     db.query(query, values, (err, result) => {
         if (err) {
             console.error("Failed to insert data into MySQL:", err);
             return res.status(500).send("Failed to store data");
         }
-        console.log("Data stored in MySQL:", result);
+        console.log("Data stored in MySQL (HTTP):", result);
         res.sendStatus(200); // Respond to LTE module with success
     });
-
-    // Forward the data to WebSocket clients
-    broadcast(JSON.stringify(data));
 });
 
 // Start the server
