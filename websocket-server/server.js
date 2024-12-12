@@ -31,7 +31,7 @@ const device = awsIot.device({
     keyPath: process.env.AWS_IOT_KEY_PATH, // Path to private key
     certPath: process.env.AWS_IOT_CERT_PATH, // Path to device certificate
     caPath: process.env.AWS_IOT_CA_PATH, // Path to root CA certificate
-    clientId: process.env.AWS_IOT_CLIENT_ID, // Unique client ID for your device
+    clientId: AWS_IOT_CLIENT_ID, // Unique client ID for your device
     host: process.env.AWS_IOT_ENDPOINT, // AWS IoT endpoint
 });
 
