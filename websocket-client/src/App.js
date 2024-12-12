@@ -5,7 +5,7 @@ const App = () => {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     useEffect(() => {
-        const websocket = new WebSocket("ws://13.60.20.183:3000");
+        const websocket = new WebSocket(process.env.REACT_APP_WEBSOCKET_URL);
 
         websocket.onopen = () => {
             console.log("WebSocket connection established");
@@ -13,12 +13,12 @@ const App = () => {
 
         websocket.onmessage = async (event) => {
             let receivedData;
-	    let flag = 0;
+	        let flag = 0;
 
             // Check if the data is a Blob
             if (event.data instanceof Blob) {
                 console.log("Received a Blob:", event.data);
-		flag = 1;
+		        flag = 1;
                 try {
                     // Convert Blob to text
                     const text = await event.data.text();
@@ -27,35 +27,41 @@ const App = () => {
                     try {
                         // Parse as JSON if possible
                         receivedData = JSON.parse(text);
-                    } catch (error) {
+                    } 
+                    catch (error) {
                         receivedData = text; // Use raw text if parsing fails
                     }
-                } catch (error) {
+                } 
+                catch (error) {
                     console.error("Error converting Blob to text:", error);
                     return;
                 }
             }
-	    else {
+            else {
                 const text = event.data;
-		if(text.slice(-1) === '}'){
-			console.log("Probably received JSON:", event.data);
-			try {
-				receivedData = JSON.parse(text);
-				flag = 1;
-			} catch(error) {
-				receivedData = text;
-				flag = 0;
-				console.log("NOT JSON:", text);
-			}
-		}
-		else {
-			receivedData = text;
-			flag = 0;
-		}
+                // workaround as earlier JSON sent by LTE was not being identified.
+                // Code was just checking if it was blob, but LTE was not sending Blob
+                // LTE sent normal formatted JSON file as a string
+                if(text.slice(-1) === '}'){
+                    console.log("Probably received JSON:", event.data);
+                    try {
+                        receivedData = JSON.parse(text);
+                        flag = 1;
+                    } 
+                    catch(error) {
+                        receivedData = text;
+                        flag = 0;
+                        console.log("NOT JSON:", text);
+                    }
+                }
+                else {
+                    receivedData = text;
+                    flag = 0;
+                }
             }
 
             console.log("Parsed data:", receivedData);
-	    console.log(typeof receivedData); 
+	        console.log(typeof receivedData); 
             if (typeof receivedData === "object" && receivedData !== null && flag === 1) {
                 // If it's an object, format key-value pairs
                 setMessages((prev) => [
@@ -65,7 +71,7 @@ const App = () => {
                         .join("\n"),
                 ]);
             }
-	    else {
+            else {
                 // If it's plain text, display as-is
                 setMessages((prev) => [...prev, receivedData]);
             }
@@ -86,7 +92,8 @@ const App = () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(input);
             setInput("");
-        } else {
+        }
+        else {
             console.error("WebSocket is not open");
         }
     };
