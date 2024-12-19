@@ -3,6 +3,7 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const mysql = require("mysql2");
+const awsIot = require('aws-iot-device-sdk');
 
 // Database configuration
 const db = mysql.createConnection({
@@ -36,13 +37,30 @@ function broadcast(data) {
     });
 }
 
+// Function to save data to MySQL
+function saveToDatabase(data) {
+    const query = "INSERT INTO LTEdata (field1, field2, field3, field4, field5, field6, field7, field8, field9, field10) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const values = [
+        data.field1, data.field2, data.field3, data.field4, 
+        data.field5, data.field6, data.field7, data.field8, 
+        data.field9, data.field10
+    ];
+
+    db.query(query, values, (err, result) => {
+        if (err) {
+            console.error("Failed to insert data into MySQL:", err);
+            return;
+        }
+        console.log("Data stored in MySQL:", result);
+    });
+}
+
 // WebSocket server
 wss.on("connection", (ws) => {
     console.log("Client connected");
 
     ws.on("message", (message) => {
         console.log("Received from WebSocket client:", message);
-        // Broadcast message to all connected WebSocket clients
         broadcast(message);
     });
 
@@ -51,30 +69,74 @@ wss.on("connection", (ws) => {
     });
 });
 
-// HTTP POST endpoint
-app.post("/data", (req, res) => {
-    const data = req.body; // Assume the POST body contains JSON data
-    console.log("Received from LTE module:", data);
+// MQTT Connection using aws-iot-device-sdk
+const device = awsIot.device({
+    keyPath: process.env.AWS_IOT_PRIVATE_KEY,      // Path to private key
+    certPath: process.env.AWS_IOT_CERTIFICATE,     // Path to certificate
+    caPath: process.env.AWS_IOT_ROOT_CA,           // Path to root CA
+    clientId: `server-${Math.random().toString(16).substring(2, 8)}`, // Unique client ID
+    host: process.env.AWS_IOT_ENDPOINT             // AWS IoT Core endpoint
+});
 
-    // Save the data to the database
-    const query = "INSERT INTO LTEdata (field1, field2, field3, field4, field5, field6, field7, field8, field9, field10) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    const values = [data.field1, data.field2, data.field3, data.field4, data.field5, data.field6, data.field7, data.field8, data.field9, data.field10]; // Replace with your actual column names and values
-
-    db.query(query, values, (err, result) => {
+// MQTT Event Handlers
+device.on('connect', () => {
+    console.log('Connected to AWS IoT Core');
+    // Subscribe to your specific MQTT topic
+    device.subscribe('lte-module/data', (err) => {
         if (err) {
-            console.error("Failed to insert data into MySQL:", err);
-            return res.status(500).send("Failed to store data");
+            console.error('MQTT Subscription error:', err);
+        } else {
+            console.log('Subscribed to lte-module/data topic');
         }
-        console.log("Data stored in MySQL:", result);
-        res.sendStatus(200); // Respond to LTE module with success
     });
+});
 
-    // Forward the data to WebSocket clients
+device.on('message', (topic, payload) => {
+    try {
+        const data = JSON.parse(payload.toString());
+        console.log('Received MQTT data:', data);
+        
+        // Save to database
+        saveToDatabase(data);
+        
+        // Broadcast to WebSocket clients
+        broadcast(JSON.stringify(data));
+    } catch (error) {
+        console.error('Error processing MQTT message:', error);
+    }
+});
+
+device.on('error', (err) => {
+    console.error('MQTT Connection error:', err);
+});
+
+// HTTP POST endpoint (kept as backup)
+app.post("/data", (req, res) => {
+    const data = req.body;
+    console.log("Received from LTE module via HTTP POST:", data);
+
+    // Save to database
+    saveToDatabase(data);
+
+    // Forward to WebSocket clients
     broadcast(JSON.stringify(data));
+
+    res.sendStatus(200);
 });
 
 // Start the server
 const PORT = process.env.PORT;
 server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('Closing MQTT connection and server');
+    device.end();
+    server.close(() => {
+        db.end((err) => {
+            process.exit(err ? 1 : 0);
+        });
+    });
 });
