@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require("express");
 const http = require("http");
+const WebSocket = require("ws");
 const mysql = require("mysql2");
 const awsIot = require('aws-iot-device-sdk');
 
@@ -23,61 +24,119 @@ db.connect((err) => {
 
 const app = express();
 const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
 app.use(express.json()); // Middleware to parse JSON bodies
 
-// AWS IoT Device Configuration
-const device = awsIot.device({
-    keyPath: process.env.AWS_IOT_KEY_PATH, // Path to private key
-    certPath: process.env.AWS_IOT_CERT_PATH, // Path to device certificate
-    caPath: process.env.AWS_IOT_CA_PATH, // Path to root CA certificate
-    clientId: AWS_IOT_CLIENT_ID, // Unique client ID for your device
-    host: process.env.AWS_IOT_ENDPOINT, // AWS IoT endpoint
-});
-
-// AWS IoT Events
-device.on('connect', () => {
-    console.log('Connected to AWS IoT Core');
-    device.subscribe('lte/data'); // Subscribe to the topic where LTE module sends data
-});
-
-device.on('message', (topic, payload) => {
-    console.log(`Message received on topic ${topic}: ${payload.toString()}`);
-    const data = JSON.parse(payload.toString()); // Parse the incoming message
-
-    // Save data to the database
-    const query = "INSERT INTO LTEdata (field1, field2, field3, field4, field5, field6, field7, field8, field9, field10) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    const values = [data.field1, data.field2, data.field3, data.field4, data.field5, data.field6, data.field7, data.field8, data.field9, data.field10];
-
-    db.query(query, values, (err, result) => {
-        if (err) {
-            return console.error("Failed to insert data into MySQL:", err);
+// WebSocket message broadcast
+function broadcast(data) {
+    wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(data);
         }
-        console.log("Data stored in MySQL:", result);
     });
-});
+}
 
-// HTTP POST endpoint (optional, can still be used if needed)
-app.post("/data", (req, res) => {
-    const data = req.body; // Assume the POST body contains JSON data
-    console.log("Received from LTE module (HTTP):", data);
-
-    // Save the data to the database
+// Function to save data to MySQL
+function saveToDatabase(data) {
     const query = "INSERT INTO LTEdata (field1, field2, field3, field4, field5, field6, field7, field8, field9, field10) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    const values = [data.field1, data.field2, data.field3, data.field4, data.field5, data.field6, data.field7, data.field8, data.field9, data.field10];
+    const values = [
+        data.field1, data.field2, data.field3, data.field4, 
+        data.field5, data.field6, data.field7, data.field8, 
+        data.field9, data.field10
+    ];
 
     db.query(query, values, (err, result) => {
         if (err) {
             console.error("Failed to insert data into MySQL:", err);
-            return res.status(500).send("Failed to store data");
+            return;
         }
-        console.log("Data stored in MySQL (HTTP):", result);
-        res.sendStatus(200); // Respond to LTE module with success
+        console.log("Data stored in MySQL:", result);
     });
+}
+
+// WebSocket server
+wss.on("connection", (ws) => {
+    console.log("Client connected");
+
+    ws.on("message", (message) => {
+        console.log("Received from WebSocket client:", message);
+        broadcast(message);
+    });
+
+    ws.on("close", () => {
+        console.log("Client disconnected");
+    });
+});
+
+// MQTT Connection using aws-iot-device-sdk
+const device = awsIot.device({
+    keyPath: process.env.AWS_IOT_PRIVATE_KEY,      // Path to private key
+    certPath: process.env.AWS_IOT_CERTIFICATE,     // Path to certificate
+    caPath: process.env.AWS_IOT_ROOT_CA,           // Path to root CA
+    clientId: `server-${Math.random().toString(16).substring(2, 8)}`, // Unique client ID
+    host: process.env.AWS_IOT_ENDPOINT             // AWS IoT Core endpoint
+});
+
+// MQTT Event Handlers
+device.on('connect', () => {
+    console.log('Connected to AWS IoT Core');
+    // Subscribe to your specific MQTT topic
+    device.subscribe('lte-module/data', (err) => {
+        if (err) {
+            console.error('MQTT Subscription error:', err);
+        } else {
+            console.log('Subscribed to lte-module/data topic');
+        }
+    });
+});
+
+device.on('message', (topic, payload) => {
+    try {
+        const data = JSON.parse(payload.toString());
+        console.log('Received MQTT data:', data);
+        
+        // Save to database
+        saveToDatabase(data);
+        
+        // Broadcast to WebSocket clients
+        broadcast(JSON.stringify(data));
+    } catch (error) {
+        console.error('Error processing MQTT message:', error);
+    }
+});
+
+device.on('error', (err) => {
+    console.error('MQTT Connection error:', err);
+});
+
+// HTTP POST endpoint (kept as backup)
+app.post("/data", (req, res) => {
+    const data = req.body;
+    console.log("Received from LTE module via HTTP POST:", data);
+
+    // Save to database
+    saveToDatabase(data);
+
+    // Forward to WebSocket clients
+    broadcast(JSON.stringify(data));
+
+    res.sendStatus(200);
 });
 
 // Start the server
 const PORT = process.env.PORT;
 server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('Closing MQTT connection and server');
+    device.end();
+    server.close(() => {
+        db.end((err) => {
+            process.exit(err ? 1 : 0);
+        });
+    });
 });
