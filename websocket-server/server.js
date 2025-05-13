@@ -37,13 +37,12 @@ function broadcast(data) {
     });
 }
 
-// Function to save data to MySQL
+
 function saveToDatabase(data) {
-    const query = "INSERT INTO LTEdata (field1, field2, field3, field4, field5, field6, field7, field8, field9, field10) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const query = "INSERT INTO ams_flt (Teensy_time, TSV, TSC, CON_SRC, CON_SRC_IL, TO_AMS_RELAY, PRE_PLAUS, C_PLUS, C_MINUS, C_PLUS_PLAUS, C_MINUS_PLAUS, GT_60V_PLAUS, PRE_MECH) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
-        data.field1, data.field2, data.field3, data.field4, 
-        data.field5, data.field6, data.field7, data.field8, 
-        data.field9, data.field10
+        data.Teensy_time, data.TSV, data.TSC, data.CON_SRC, data.CON_SRC_IL, data.TO_AMS_RELAY, data.PRE_PLAUS, data.C_PLUS, 
+        data.C_MINUS, data.C_PLUS_PLAUS, data.C_MINUS_PLAUS, data.GT_60V_PLAUS, data.PRE_MECH
     ];
 
     db.query(query, values, (err, result) => {
@@ -51,13 +50,49 @@ function saveToDatabase(data) {
             console.error("Failed to insert data into MySQL:", err);
             return;
         }
+        
         console.log("Data stored in MySQL:", result);
+        
+        // Get the inserted ID
+        const insertId = result.insertId;
+        
+        // Query to get the complete row including the auto-generated timestamp
+        const fetchQuery = "SELECT * FROM ams_flt WHERE id = ?";
+        db.query(fetchQuery, [insertId], (fetchErr, rows) => {
+            if (fetchErr) {
+                console.error("Failed to fetch complete data:", fetchErr);
+                return;
+            }
+            
+            if (rows.length > 0) {
+                // Broadcast the complete data including ID and DB_timestamp
+                broadcast(JSON.stringify(rows[0]));
+            }
+        });
     });
 }
 
 // WebSocket server
 wss.on("connection", (ws) => {
     console.log("Client connected");
+    
+    // Fetch recent data for the newly connected client
+    const query = "SELECT id as ID, DB_TIME, Teensy_time, TSV, TSC, CON_SRC, CON_SRC_IL, TO_AMS_RELAY, PRE_PLAUS, C_PLUS, C_MINUS, C_PLUS_PLAUS, C_MINUS_PLAUS, GT_60V_PLAUS, PRE_MECH FROM ams_flt ORDER BY id DESC LIMIT 50";
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error("Failed to fetch historical data:", err);
+            return;
+        }
+        
+        // Send the historical data only to this client
+        if (results.length > 0) {
+            // Send each result as a separate message
+            results.reverse().forEach(row => {
+                ws.send(JSON.stringify(row));
+            });
+        }
+    });
 
     ws.on("message", (message) => {
         console.log("Received from WebSocket client:", message);
@@ -74,7 +109,7 @@ const device = awsIot.device({
     keyPath: process.env.AWS_IOT_PRIVATE_KEY,      // Path to private key
     certPath: process.env.AWS_IOT_CERTIFICATE,     // Path to certificate
     caPath: process.env.AWS_IOT_ROOT_CA,           // Path to root CA
-    clientId: `server-${Math.random().toString(16).substring(2, 8)}`, // Unique client ID
+    clientId: `server-2131231`, // Unique client ID
     host: process.env.AWS_IOT_ENDPOINT             // AWS IoT Core endpoint
 });
 
@@ -100,7 +135,7 @@ device.on('message', (topic, payload) => {
         saveToDatabase(data);
         
         // Broadcast to WebSocket clients
-        broadcast(JSON.stringify(data));
+        // broadcast(JSON.stringify(data));
     } catch (error) {
         console.error('Error processing MQTT message:', error);
     }
