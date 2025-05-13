@@ -1,38 +1,193 @@
-.App {
-  text-align: center;
-}
+/* Add tailwind directives */
+@import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
+/* Keep some of the original App.css styling */
 .App-link {
   color: #61dafb;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Custom styles to enhance the UI */
+.data-row:hover {
+  background-color: #f0f9ff;
+}
+
+/* Dark mode styles */
+body.dark-mode {
+  background-color: #111827;
+  color: #f3f4f6;
+}
+
+/* Dark mode hover effect */
+.dark-mode .data-row:hover {
+  background-color: #1f2937;
+}
+
+/* Ensure proper table layout */
+table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* Table styling improvements */
+th {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+td {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Table cell customizations */
+td.db-time-cell {
+  word-break: break-word;
+  max-width: 120px;
+}
+
+/* Better scrollbar styling */
+#table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.dark-mode #table-container::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+#table-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.dark-mode #table-container::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+#table-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.dark-mode #table-container::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Ensure tooltips display properly for charts */
+.recharts-tooltip-wrapper {
+  z-index: 10;
+}
+
+/* Connection status indicator pulse animation */
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.connection-status-active {
+  animation: pulse 2s infinite;
+}
+
+/* Chart styling */
+.recharts-dot {
+  stroke-width: 2px;
+}
+
+.recharts-default-tooltip {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  padding: 8px !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15) !important;
+}
+
+.dark-mode .recharts-default-tooltip {
+  background-color: rgba(31, 41, 55, 0.95) !important;
+  border: 1px solid #4b5563 !important;
+  color: #f3f4f6 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Dark mode styles for charts */
+.dark-mode .recharts-cartesian-grid-horizontal line,
+.dark-mode .recharts-cartesian-grid-vertical line {
+  stroke: #4b5563;
+}
+
+.dark-mode .recharts-xAxis .recharts-cartesian-axis-line,
+.dark-mode .recharts-yAxis .recharts-cartesian-axis-line,
+.dark-mode .recharts-xAxis .recharts-cartesian-axis-tick-line,
+.dark-mode .recharts-yAxis .recharts-cartesian-axis-tick-line {
+  stroke: #6b7280;
+}
+
+.dark-mode .recharts-text {
+  fill: #d1d5db;
+}
+
+/* Make the chart areas distinct */
+.recharts-wrapper {
+  background-color: #fafafa;
+  border-radius: 4px;
+  padding: 8px;
+  border: 1px solid #eaeaea;
+}
+
+.dark-mode .recharts-wrapper {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+}
+
+/* Toggle switch styling */
+.dark-mode-toggle {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.dark-mode-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.dark-mode-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 24px;
+}
+
+.dark-mode-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .dark-mode-toggle-slider {
+  background-color: #2563eb;
+}
+
+input:checked + .dark-mode-toggle-slider:before {
+  transform: translateX(24px);
 }
