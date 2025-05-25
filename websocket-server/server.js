@@ -188,6 +188,44 @@ function saveAMSData(data) {
     });
 }
 
+function getRecentMotorData(ws) {
+    const query = "SELECT * FROM motor_data ORDER BY id DESC LIMIT 20";
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error("Failed to fetch historical motor data:", err);
+            return;
+        }
+        
+        results.reverse().forEach(row => {
+            const message = {
+                type: row.motor_side === 'LEFT' ? 'leftMotorUpdate' : 'rightMotorUpdate',
+                data: row
+            };
+            ws.send(JSON.stringify(message));
+        });
+    });
+}
+
+function getRecentSensorData(ws) {
+    const query = "SELECT * FROM sensor_data ORDER BY id DESC LIMIT 10";
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error("Failed to fetch historical sensor data:", err);
+            return;
+        }
+        
+        results.reverse().forEach(row => {
+            const message = {
+                type: 'sensorUpdate',
+                data: row
+            };
+            ws.send(JSON.stringify(message));
+        });
+    });
+}
+
 // Updated WebSocket connection handler
 wss.on("connection", (ws) => {
     console.log("Client connected");
@@ -287,44 +325,6 @@ app.post("/data", (req, res) => {
 
     res.sendStatus(200);
 });
-
-function getRecentMotorData(ws) {
-    const query = "SELECT * FROM motor_data ORDER BY id DESC LIMIT 20";
-    
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error("Failed to fetch historical motor data:", err);
-            return;
-        }
-        
-        results.reverse().forEach(row => {
-            const message = {
-                type: row.motor_side === 'LEFT' ? 'leftMotorUpdate' : 'rightMotorUpdate',
-                data: row
-            };
-            ws.send(JSON.stringify(message));
-        });
-    });
-}
-
-function getRecentSensorData(ws) {
-    const query = "SELECT * FROM sensor_data ORDER BY id DESC LIMIT 10";
-    
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error("Failed to fetch historical sensor data:", err);
-            return;
-        }
-        
-        results.reverse().forEach(row => {
-            const message = {
-                type: 'sensorUpdate',
-                data: row
-            };
-            ws.send(JSON.stringify(message));
-        });
-    });
-}
 
 // Start the server
 const PORT = process.env.PORT;
