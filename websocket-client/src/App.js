@@ -207,7 +207,7 @@ const App = () => {
 
     websocket.onmessage = async (event) => {
       let receivedData;
-      let amsData, leftMotorData, rightMotorData, sensorData;
+      let amsData, sensorData;
       let flag = 0;
 
       // Check if the data is a Blob
@@ -250,8 +250,8 @@ const App = () => {
       if (typeof receivedData === "object" && receivedData !== null && flag === 1) {
         const now = new Date().toISOString();
         amsData = receivedData.ams_data || {};
-        leftMotorData = receivedData.motor_data.leftMotor || {};
-        rightMotorData = receivedData.motor_data.rightMotor || {};
+        motorData.left = receivedData.motor_data.leftMotor || {};
+        motorData.right = receivedData.motor_data.rightMotor || {};
         sensorData = receivedData.sensor_data || {};
 
         // Handle AMS data (existing logic)
@@ -327,15 +327,15 @@ const App = () => {
           });
         }
 
-        if (leftMotorData && rightMotorData) {
+        if (motorData.left && motorData.right) {
           setMotorData({
             left: {
-              ...leftMotorData,
-              timestamp: leftMotorData.timestamp || now
+              ...motorData.left,
+              timestamp: motorData.left.timestamp || now
             },
             right: {
-              ...rightMotorData,
-              timestamp: rightMotorData.timestamp || now
+              ...motorData.right,
+              timestamp: motorData.right.timestamp || now
             }
           });
           setLastUpdate(prev => ({ ...prev, motor: now }));
@@ -469,8 +469,8 @@ const App = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricCard title="TSV" value={amsData.TSV?.toFixed(1)} unit="V" size="large" />
                 <MetricCard title="TSC" value={amsData.TSC?.toFixed(1)} unit="A" size="large" />
-                <MetricCard title="Left RPM" value={leftMotorData.filtered_rpm} unit="RPM" />
-                <MetricCard title="Right RPM" value={rightMotorData.filtered_rpm} unit="RPM" />
+                <MetricCard title="Left RPM" value={motorData.left.filtered_rpm} unit="RPM" />
+                <MetricCard title="Right RPM" value={motorData.right.filtered_rpm} unit="RPM" />
               </div>
 
               {/* Main Dashboard Grid */}
@@ -484,10 +484,10 @@ const App = () => {
                   <div className={`p-4 rounded-lg border ${darkMode ? 'border-gray-600 bg-gray-700' : 'border-gray-200 bg-white'}`}>
                     <h3 className={`text-lg font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Left Motor</h3>
                     <div className="grid grid-cols-2 gap-3">
-                      <MetricCard title="Torque Out" value={leftMotorData.torque_out?.toFixed(1)} unit="Nm" size="small" />
-                      <MetricCard title="Torque Cmd" value={leftMotorData.torque_cmd?.toFixed(1)} unit="Nm" size="small" />
-                      <MetricCard title="Current" value={leftMotorData.i_ist?.toFixed(2)} unit="A" size="small" />
-                      <MetricCard title="DC Bus V" value={leftMotorData.dc_bus_voltage?.toFixed(1)} unit="V" size="small" />
+                      <MetricCard title="Torque Out" value={motorData.left.torque_out?.toFixed(1)} unit="Nm" size="small" />
+                      <MetricCard title="Torque Cmd" value={motorData.left.torque_cmd?.toFixed(1)} unit="Nm" size="small" />
+                      <MetricCard title="Current" value={motorData.left.i_ist?.toFixed(2)} unit="A" size="small" />
+                      <MetricCard title="DC Bus V" value={motorData.left.dc_bus_voltage?.toFixed(1)} unit="V" size="small" />
                     </div>
                   </div>
 
@@ -495,10 +495,10 @@ const App = () => {
                   <div className={`p-4 rounded-lg border ${darkMode ? 'border-gray-600 bg-gray-700' : 'border-gray-200 bg-white'}`}>
                     <h3 className={`text-lg font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Right Motor</h3>
                     <div className="grid grid-cols-2 gap-3">
-                      <MetricCard title="Torque Out" value={rightMotorData.torque_out?.toFixed(1)} unit="Nm" size="small" />
-                      <MetricCard title="Torque Cmd" value={rightMotorData.torque_cmd?.toFixed(1)} unit="Nm" size="small" />
-                      <MetricCard title="Current" value={rightMotorData.i_ist?.toFixed(2)} unit="A" size="small" />
-                      <MetricCard title="DC Bus V" value={rightMotorData.dc_bus_voltage?.toFixed(1)} unit="V" size="small" />
+                      <MetricCard title="Torque Out" value={motorData.right.torque_out?.toFixed(1)} unit="Nm" size="small" />
+                      <MetricCard title="Torque Cmd" value={motorData.right.torque_cmd?.toFixed(1)} unit="Nm" size="small" />
+                      <MetricCard title="Current" value={motorData.right.i_ist?.toFixed(2)} unit="A" size="small" />
+                      <MetricCard title="DC Bus V" value={motorData.right.dc_bus_voltage?.toFixed(1)} unit="V" size="small" />
                     </div>
                   </div>
                 </div>
@@ -634,7 +634,7 @@ const App = () => {
                   <div className="flex justify-between items-center">
                     <div className="text-center">
                       <div className={`text-2xl font-bold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                        {leftMotorData.filtered_rpm || '--'}
+                        {motorData.left.filtered_rpm || '--'}
                       </div>
                       <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Left RPM</div>
                     </div>
@@ -643,19 +643,19 @@ const App = () => {
                         <div 
                           className="h-2 bg-blue-500 rounded-full absolute"
                           style={{ 
-                            width: `${Math.abs((leftMotorData.filtered_rpm || 0) - (rightMotorData.filtered_rpm || 0)) / 100}%`,
-                            left: (leftMotorData.filtered_rpm || 0) > (rightMotorData.filtered_rpm || 0) ? '50%' : 'auto',
-                            right: (leftMotorData.filtered_rpm || 0) < (rightMotorData.filtered_rpm || 0) ? '50%' : 'auto'
+                            width: `${Math.abs((motorData.left.filtered_rpm || 0) - (motorData.right.filtered_rpm || 0)) / 100}%`,
+                            left: (motorData.left.filtered_rpm || 0) > (motorData.right.filtered_rpm || 0) ? '50%' : 'auto',
+                            right: (motorData.left.filtered_rpm || 0) < (motorData.right.filtered_rpm || 0) ? '50%' : 'auto'
                           }}
                         />
                       </div>
                       <div className={`text-xs text-center mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Δ {Math.abs((leftMotorData.filtered_rpm || 0) - (rightMotorData.filtered_rpm || 0)).toFixed(0)} RPM
+                        Δ {Math.abs((motorData.left.filtered_rpm || 0) - (motorData.right.filtered_rpm || 0)).toFixed(0)} RPM
                       </div>
                     </div>
                     <div className="text-center">
                       <div className={`text-2xl font-bold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
-                        {rightMotorData.filtered_rpm || '--'}
+                        {motorData.right.filtered_rpm || '--'}
                       </div>
                       <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Right RPM</div>
                     </div>
