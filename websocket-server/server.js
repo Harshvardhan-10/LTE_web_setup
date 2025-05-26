@@ -211,11 +211,11 @@ function getRecentMotorData(ws) {
             let message;
             if(row.motor_side === 'LEFT') {
                 message = {
-                    'leftMotor': {row}
+                    'leftMotor': row
                 };
             } else if(row.motor_side === 'RIGHT') {
                 message = {
-                    'rightMotor': {row}
+                    'rightMotor': row
                 };
             }
             ws.send(JSON.stringify(message));
