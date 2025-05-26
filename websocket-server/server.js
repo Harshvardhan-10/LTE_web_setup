@@ -67,11 +67,11 @@ function saveMotorData(data) {
                 }
 
                 if (rows.length > 0) {
-                    const message = {
-                        type: 'leftMotorUpdate',
-                        data: rows[0]
-                    };
-                    broadcast(JSON.stringify(message));
+                    broadcast(JSON.stringify({
+                        motor_data: {
+                            rightMotor: rows[0]
+                        }
+                    }));
                 }
             });
         });
@@ -106,11 +106,11 @@ function saveMotorData(data) {
                 }
 
                 if (rows.length > 0) {
-                    const message = {
-                        type: 'rightMotorUpdate',
-                        data: rows[0]
-                    };
-                    broadcast(JSON.stringify(message));
+                    broadcast(JSON.stringify({
+                        motor_data: {
+                            rightMotor: rows[0]
+                        }
+                    }));
                 }
             });
         });
@@ -146,7 +146,7 @@ function saveSensorData(data) {
             
             if (rows.length > 0) {
                 // Broadcast the complete data including ID and DB_timestamp
-                broadcast(JSON.stringify(rows[0]));
+                broadcast(JSON.stringify({ sensor_data: rows[0] }));
             }
         });
     });
@@ -182,7 +182,7 @@ function saveAMSData(data) {
             
             if (rows.length > 0) {
                 // Broadcast the complete data including ID and DB_timestamp
-                broadcast(JSON.stringify(rows[0]));
+                broadcast(JSON.stringify({ ams_data: rows[0] }));
             }
         });
     });
