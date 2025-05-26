@@ -286,7 +286,7 @@ device.on('message', (topic, payload) => {
         
         // Handle different types of data
         if (data.ams_data) {
-            saveToDatabase(data.ams_data);
+            saveAMSData(data.ams_data);
         }
         
         if (data.motor_data) {
@@ -312,7 +312,7 @@ app.post("/data", (req, res) => {
 
     // Handle different types of data
     if (data.ams_data) {
-        saveToDatabase(data.ams_data);
+        saveAMSData(data.ams_data);
     }
     
     if (data.motor_data) {
