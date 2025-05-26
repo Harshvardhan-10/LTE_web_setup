@@ -588,30 +588,30 @@ const App = () => {
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS1</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.apps1_raw?.toFixed(0) || '--'}%
+                            {sensorData.apps1_raw || '--'}
                           </span>
                         </div>
-                        <ProgressBar value={sensorData.apps1_raw || 0} max={100} color="purple" showPercentage={false} />
+                        <ProgressBar value={sensorData.apps1_raw || 0} max={1023} color="purple" showPercentage={true} />
                       </div>
                       
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS2</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.apps2_raw?.toFixed(0) || '--'}%
+                            {sensorData.apps2_raw || '--'}
                           </span>
                         </div>
-                        <ProgressBar value={sensorData.apps2_raw || 0} max={100} color="purple" showPercentage={false} />
+                        <ProgressBar value={sensorData.apps2_raw || 0} max={1023} color="purple" showPercentage={true} />
                       </div>
                       
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>BPS2</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.bps2_raw?.toFixed(0) || '--'}%
+                            {sensorData.bps2_raw || '--'}
                           </span>
                         </div>
-                        <ProgressBar value={(((sensorData.bps2_raw?.toFixed(0))-100)/100) || 0} max={100} color="red" showPercentage={false} />
+                        <ProgressBar value={sensorData.bps2_raw || 0} max={1023} color="red" showPercentage={true} />
                       </div>
                     </div>
                   </div>
