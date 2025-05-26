@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
+
+function mapValue(value, inMin, inMax, outMin, outMax) {
+  // Clamp the input to avoid values outside the expected range
+  const clamped = Math.min(Math.max(value, inMin), inMax);
+  return ((clamped - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+}
+
 const App = () => {
   const [ws, setWs] = useState(null);
   const [tableData, setTableData] = useState([]);
@@ -254,6 +261,9 @@ const App = () => {
         const rightMotorData = receivedData.motor_data?.rightMotor || {};
         sensorData = receivedData.sensor_data || {};
 
+        console.log("Right Motor Data: ", rightMotorData);
+        console.log("Left Motor Data: ", leftMotorData);
+
         // Handle AMS data (existing logic)
         if (amsData.TSV !== undefined || amsData.TSC !== undefined) {
           setAmsData(amsData);
@@ -342,11 +352,11 @@ const App = () => {
         }
 
         // Handle Sensor data
-        if (sensorData.apps1 !== undefined || sensorData.yaw_rate !== undefined) {
+        if (sensorData.apps1_raw !== undefined || sensorData.yaw_rate !== undefined) {
           setSensorData({
-            apps1: sensorData.apps1,
-            apps2: sensorData.apps2,
-            bps2: sensorData.bps2,
+            apps1: sensorData.apps1_raw,
+            apps2: sensorData.apps2_raw,
+            bps2_raw: sensorData.bps2_raw,
             steer_raw: sensorData.steer_raw,
             yaw_rate: sensorData.yaw_rate,
             accel_x: sensorData.acc_x,
@@ -541,12 +551,16 @@ const App = () => {
                     <h3 className={`text-lg font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Safety Status</h3>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       {[
+                        { key: 'CON_SRC', label: 'CON SRC' },
+                        { key: 'CON_SRC_IL', label: 'CON SRC IL' },
+                        { key: 'TO_AMS_RELAY', label: 'AMS Relay' },
                         { key: 'PRE_PLAUS', label: 'Pre Plaus' },
+                        { key: 'C_PLUS', label: 'C+' },
+                        { key: 'C_MINUS', label: 'C-' },
                         { key: 'C_PLUS_PLAUS', label: 'C+ Plaus' },
-                        { key: 'GT_60V_PLAUS', label: '>60V Plaus' },
                         { key: 'C_MINUS_PLAUS', label: 'C- Plaus' },
-                        { key: 'PRE_MECH', label: 'Pre Mech' },
-                        { key: 'TO_AMS_RELAY', label: 'AMS Relay' }
+                        { key: 'GT_60V_PLAUS', label: '>60V Plaus' },
+                        { key: 'PRE_MECH', label: 'Pre Mech' }
                       ].map(item => (
                         <div key={item.key} className="flex items-center space-x-2">
                           <div className={`w-3 h-3 rounded-full ${amsData[item.key] ? 'bg-green-500' : 'bg-red-500'}`}></div>
@@ -569,30 +583,30 @@ const App = () => {
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS1</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.apps1?.toFixed(0) || '--'}%
+                            {sensorData.apps1_raw?.toFixed(0) || '--'}%
                           </span>
                         </div>
-                        <ProgressBar value={sensorData.apps1 || 0} max={100} color="purple" showPercentage={false} />
+                        <ProgressBar value={sensorData.apps1_raw || 0} max={100} color="purple" showPercentage={false} />
                       </div>
                       
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS2</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.apps2?.toFixed(0) || '--'}%
+                            {sensorData.apps2_raw?.toFixed(0) || '--'}%
                           </span>
                         </div>
-                        <ProgressBar value={sensorData.apps2 || 0} max={100} color="purple" showPercentage={false} />
+                        <ProgressBar value={sensorData.apps2_raw || 0} max={100} color="purple" showPercentage={false} />
                       </div>
                       
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>BPS2</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.bps2?.toFixed(0) || '--'}%
+                            {sensorData.bps2_raw?.toFixed(0) || '--'}%
                           </span>
                         </div>
-                        <ProgressBar value={sensorData.bps2 || 0} max={100} color="red" showPercentage={false} />
+                        <ProgressBar value={(((sensorData.bps2_raw?.toFixed(0))-100)/100) || 0} max={100} color="red" showPercentage={false} />
                       </div>
                     </div>
                   </div>
@@ -667,23 +681,23 @@ const App = () => {
                   <h3 className={`text-lg font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>APPS Correlation</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS1: {sensorData.apps1?.toFixed(0) || '--'}%</span>
-                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS2: {sensorData.apps2?.toFixed(0) || '--'}%</span>
+                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS1: {sensorData.apps1_raw?.toFixed(0) || '--'}%</span>
+                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS2: {sensorData.apps2_raw?.toFixed(0) || '--'}%</span>
                     </div>
                     <div className="relative h-16 w-full">
                       <div className={`absolute inset-0 border-2 rounded ${darkMode ? 'border-gray-600' : 'border-gray-300'}`}>
                         <div 
                           className="absolute w-2 h-2 bg-purple-500 rounded-full"
                           style={{
-                            left: `${(sensorData.apps1 || 0)}%`,
-                            bottom: `${(sensorData.apps2 || 0)}%`,
+                            left: `${(sensorData.apps1_raw || 0)}%`,
+                            bottom: `${(sensorData.apps2_raw || 0)}%`,
                             transform: 'translate(-50%, 50%)'
                           }}
                         />
                       </div>
                       <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-                        Correlation: {sensorData.apps1 && sensorData.apps2 ? 
-                          (Math.abs(sensorData.apps1 - sensorData.apps2) < 5 ? '✅ Good' : '⚠️ Check') : 
+                        Correlation: {sensorData.apps1_raw && sensorData.apps2_raw ? 
+                          (Math.abs(sensorData.apps1_raw - sensorData.apps2_raw) < 5 ? '✅ Good' : '⚠️ Check') : 
                           '--'
                         }
                       </div>
