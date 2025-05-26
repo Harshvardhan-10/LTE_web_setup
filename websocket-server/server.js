@@ -26,7 +26,11 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-app.use(express.json()); // Middleware to parse JSON bodies
+app.use(express.json());
+
+// Buffer to collect data before broadcasting
+let dataBuffer = {};
+let pendingOperations = 0;
 
 // WebSocket message broadcast
 function broadcast(data) {
@@ -37,9 +41,19 @@ function broadcast(data) {
     });
 }
 
+// Function to check if all data is ready and broadcast
+function checkAndBroadcast() {
+    if (pendingOperations === 0 && Object.keys(dataBuffer).length > 0) {
+        console.log("Broadcasting complete data:", dataBuffer);
+        broadcast(JSON.stringify(dataBuffer));
+        dataBuffer = {}; // Reset buffer
+    }
+}
+
 function saveMotorData(data) {
     // Handle LEFT motor
     if (data.leftMotor) {
+        pendingOperations++;
         const leftQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?)";
         const leftValues = [
             'LEFT', 
@@ -53,32 +67,34 @@ function saveMotorData(data) {
         db.query(leftQuery, leftValues, (err, result) => {
             if (err) {
                 console.error("Failed to insert LEFT motor data into MySQL:", err);
+                pendingOperations--;
+                checkAndBroadcast();
                 return;
             }
 
             console.log("LEFT motor data stored in MySQL:", result);
 
-            // Fetch and broadcast the complete row
+            // Fetch and add to buffer
             const fetchQuery = "SELECT * FROM motor_data WHERE id = ?";
             db.query(fetchQuery, [result.insertId], (fetchErr, rows) => {
                 if (fetchErr) {
                     console.error("Failed to fetch LEFT motor data:", fetchErr);
-                    return;
+                } else if (rows.length > 0) {
+                    if (!dataBuffer.motor_data) {
+                        dataBuffer.motor_data = {};
+                    }
+                    dataBuffer.motor_data.leftMotor = rows[0];
                 }
-
-                if (rows.length > 0) {
-                    broadcast(JSON.stringify({
-                        motor_data: {
-                            leftMotor: rows[0]
-                        }
-                    }));
-                }
+                
+                pendingOperations--;
+                checkAndBroadcast();
             });
         });
     }
 
     // Handle RIGHT motor
     if (data.rightMotor) {
+        pendingOperations++;
         const rightQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?)";
         const rightValues = [
             'RIGHT', 
@@ -92,34 +108,35 @@ function saveMotorData(data) {
         db.query(rightQuery, rightValues, (err, result) => {
             if (err) {
                 console.error("Failed to insert RIGHT motor data into MySQL:", err);
+                pendingOperations--;
+                checkAndBroadcast();
                 return;
             }
 
             console.log("RIGHT motor data stored in MySQL:", result);
 
-            // Fetch and broadcast the complete row
+            // Fetch and add to buffer
             const fetchQuery = "SELECT * FROM motor_data WHERE id = ?";
             db.query(fetchQuery, [result.insertId], (fetchErr, rows) => {
                 if (fetchErr) {
                     console.error("Failed to fetch RIGHT motor data:", fetchErr);
-                    return;
+                } else if (rows.length > 0) {
+                    if (!dataBuffer.motor_data) {
+                        dataBuffer.motor_data = {};
+                    }
+                    dataBuffer.motor_data.rightMotor = rows[0];
                 }
-
-                if (rows.length > 0) {
-                    broadcast(JSON.stringify({
-                        motor_data: {
-                            rightMotor: rows[0]
-                        }
-                    }));
-                }
+                
+                pendingOperations--;
+                checkAndBroadcast();
             });
         });
     }
 }
 
 function saveSensorData(data) {
-    const query = "INSERT INTO sensor_data (apps1_raw, apps2_raw, bps2_raw, steer_raw, yaw_rate, acc_y, yaw_ang_acc, acc_x)\
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    pendingOperations++;
+    const query = "INSERT INTO sensor_data (apps1_raw, apps2_raw, bps2_raw, steer_raw, yaw_rate, acc_y, yaw_ang_acc, acc_x) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
         data.apps1_raw, data.apps2_raw, data.bps2_raw, data.steer_raw, 
         data.yaw_rate, data.acc_y, data.yaw_ang_acc, data.acc_x
@@ -128,34 +145,30 @@ function saveSensorData(data) {
     db.query(query, values, (err, result) => {
         if (err) {
             console.error("Failed to insert data into MySQL(sensor_data):", err);
+            pendingOperations--;
+            checkAndBroadcast();
             return;
         }
         
         console.log("Data stored in MySQL(sensor_data):", result);
         
-        // Get the inserted ID
-        const insertId = result.insertId;
-        
-        // Query to get the complete row including the auto-generated timestamp
         const fetchQuery = "SELECT * FROM sensor_data WHERE id = ?";
-        db.query(fetchQuery, [insertId], (fetchErr, rows) => {
+        db.query(fetchQuery, [result.insertId], (fetchErr, rows) => {
             if (fetchErr) {
-                console.error("Failed to fetch complete data:", fetchErr);
-                return;
+                console.error("Failed to fetch complete sensor data:", fetchErr);
+            } else if (rows.length > 0) {
+                dataBuffer.sensor_data = rows[0];
             }
             
-            if (rows.length > 0) {
-                // Broadcast the complete data including ID and DB_timestamp
-                broadcast(JSON.stringify({ sensor_data: rows[0] }));
-            }
+            pendingOperations--;
+            checkAndBroadcast();
         });
     });
 }
 
-
 function saveAMSData(data) {
-    const query = "INSERT INTO ams_flt (Teensy_time, TSV, TSC, CON_SRC, CON_SRC_IL, TO_AMS_RELAY, PRE_PLAUS, C_PLUS,\
-     C_MINUS, C_PLUS_PLAUS, C_MINUS_PLAUS, GT_60V_PLAUS, PRE_MECH) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    pendingOperations++;
+    const query = "INSERT INTO ams_flt (Teensy_time, TSV, TSC, CON_SRC, CON_SRC_IL, TO_AMS_RELAY, PRE_PLAUS, C_PLUS, C_MINUS, C_PLUS_PLAUS, C_MINUS_PLAUS, GT_60V_PLAUS, PRE_MECH) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
         data.Teensy_time, data.TSV, data.TSC, data.CON_SRC, data.CON_SRC_IL, data.TO_AMS_RELAY, data.PRE_PLAUS, data.C_PLUS, 
         data.C_MINUS, data.C_PLUS_PLAUS, data.C_MINUS_PLAUS, data.GT_60V_PLAUS, data.PRE_MECH
@@ -164,26 +177,23 @@ function saveAMSData(data) {
     db.query(query, values, (err, result) => {
         if (err) {
             console.error("Failed to insert data into MySQL(ams_data):", err);
+            pendingOperations--;
+            checkAndBroadcast();
             return;
         }
         
         console.log("Data stored in MySQL(ams_data):", result);
         
-        // Get the inserted ID
-        const insertId = result.insertId;
-        
-        // Query to get the complete row including the auto-generated timestamp
         const fetchQuery = "SELECT * FROM ams_flt WHERE id = ?";
-        db.query(fetchQuery, [insertId], (fetchErr, rows) => {
+        db.query(fetchQuery, [result.insertId], (fetchErr, rows) => {
             if (fetchErr) {
-                console.error("Failed to fetch complete data:", fetchErr);
-                return;
+                console.error("Failed to fetch complete AMS data:", fetchErr);
+            } else if (rows.length > 0) {
+                dataBuffer.ams_data = rows[0];
             }
             
-            if (rows.length > 0) {
-                // Broadcast the complete data including ID and DB_timestamp
-                broadcast(JSON.stringify({ ams_data: rows[0] }));
-            }
+            pendingOperations--;
+            checkAndBroadcast();
         });
     });
 }
@@ -198,10 +208,16 @@ function getRecentMotorData(ws) {
         }
         
         results.reverse().forEach(row => {
-            const message = {
-                type: row.motor_side === 'LEFT' ? 'leftMotor' : 'rightMotor',
-                data: row
-            };
+            let message;
+            if(row.motor_side === 'LEFT') {
+                message = {
+                    'leftMotor': {row}
+                };
+            } else if(row.motor_side === 'RIGHT') {
+                message = {
+                    'rightMotor': {row}
+                };
+            }
             ws.send(JSON.stringify(message));
         });
     });
@@ -218,8 +234,7 @@ function getRecentSensorData(ws) {
         
         results.reverse().forEach(row => {
             const message = {
-                type: 'sensor_data',
-                data: row
+                sensor_data: {row}
             };
             ws.send(JSON.stringify(message));
         });
@@ -259,17 +274,16 @@ wss.on("connection", (ws) => {
 
 // MQTT Connection using aws-iot-device-sdk
 const device = awsIot.device({
-    keyPath: process.env.AWS_IOT_PRIVATE_KEY,      // Path to private key
-    certPath: process.env.AWS_IOT_CERTIFICATE,     // Path to certificate
-    caPath: process.env.AWS_IOT_ROOT_CA,           // Path to root CA
-    clientId: `server-2131231`, // Unique client ID
-    host: process.env.AWS_IOT_ENDPOINT             // AWS IoT Core endpoint
+    keyPath: process.env.AWS_IOT_PRIVATE_KEY,
+    certPath: process.env.AWS_IOT_CERTIFICATE,
+    caPath: process.env.AWS_IOT_ROOT_CA,
+    clientId: `server-2131231`,
+    host: process.env.AWS_IOT_ENDPOINT
 });
 
 // MQTT Event Handlers
 device.on('connect', () => {
     console.log('Connected to AWS IoT Core');
-    // Subscribe to your specific MQTT topic
     device.subscribe('lte-module/data', (err) => {
         if (err) {
             console.error('MQTT Subscription error:', err);
@@ -283,6 +297,10 @@ device.on('message', (topic, payload) => {
     try {
         const data = JSON.parse(payload.toString());
         console.log('Received MQTT data:', data);
+        
+        // Reset buffer for new data set
+        dataBuffer = {};
+        pendingOperations = 0;
         
         // Handle different types of data
         if (data.ams_data) {
@@ -309,6 +327,10 @@ device.on('error', (err) => {
 app.post("/data", (req, res) => {
     const data = req.body;
     console.log("Received from LTE module via HTTP POST:", data);
+
+    // Reset buffer for new data set
+    dataBuffer = {};
+    pendingOperations = 0;
 
     // Handle different types of data
     if (data.ams_data) {

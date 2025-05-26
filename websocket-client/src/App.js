@@ -2,11 +2,10 @@ import React, { useState, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 
-function mapValue(value, inMin, inMax, outMin, outMax) {
-  // Clamp the input to avoid values outside the expected range
-  const clamped = Math.min(Math.max(value, inMin), inMax);
-  return ((clamped - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
-}
+// function mapValue(value, inMin, inMax, outMin, outMax) {
+//   // Clamp the input to avoid values outside the expected range
+//   return ((value - inMin) / (inMax - inMin));
+// }
 
 const App = () => {
   const [ws, setWs] = useState(null);
@@ -252,7 +251,13 @@ const App = () => {
       }
 
       console.log("Parsed data:", receivedData);
-      
+      console.log("Full received data structure:", receivedData);
+      console.log("Motor data structure:", receivedData.motor_data);
+      console.log("Left motor data:", receivedData.motor_data?.leftMotor);
+      console.log("Right motor data:", receivedData.motor_data?.rightMotor);
+      console.log("Sensor data structure:", receivedData.sensor_data);
+      console.log("AMS data structure:", receivedData.ams_data);
+
       // Process different types of data
       if (typeof receivedData === "object" && receivedData !== null && flag === 1) {
         const now = new Date().toISOString();
@@ -261,8 +266,8 @@ const App = () => {
         const rightMotorData = receivedData.motor_data?.rightMotor || {};
         sensorData = receivedData.sensor_data || {};
 
-        console.log("Right Motor Data: ", rightMotorData);
-        console.log("Left Motor Data: ", leftMotorData);
+        // console.log("Right Motor Data: ", rightMotorData);
+        // console.log("Left Motor Data: ", leftMotorData);
 
         // Handle AMS data (existing logic)
         if (amsData.TSV !== undefined || amsData.TSC !== undefined) {
@@ -337,7 +342,7 @@ const App = () => {
           });
         }
 
-        if (leftMotorData && rightMotorData) {
+        if (leftMotorData || rightMotorData) {
           setMotorData({
               left: {
                 ...leftMotorData,
