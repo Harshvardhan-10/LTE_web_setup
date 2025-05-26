@@ -166,7 +166,7 @@ const App = () => {
   };
 
   // Column definitions for our table
-  const columns = [
+  const ams_columns = [
     "ID", "DB_TIME", "Teensy_time", "TSV", "TSC", 
     "CON_SRC", "CON_SRC_IL", "TO_AMS_RELAY", "PRE_PLAUS", 
     "C_PLUS", "C_MINUS", "C_PLUS_PLAUS", "C_MINUS_PLAUS", 
@@ -207,6 +207,7 @@ const App = () => {
 
     websocket.onmessage = async (event) => {
       let receivedData;
+      let amsData, leftMotorData, rightMotorData, sensorData;
       let flag = 0;
 
       // Check if the data is a Blob
@@ -248,19 +249,23 @@ const App = () => {
       // Process different types of data
       if (typeof receivedData === "object" && receivedData !== null && flag === 1) {
         const now = new Date().toISOString();
+        amsData = receivedData.ams_data || {};
+        leftMotorData = receivedData.motor_data.leftMotor || {};
+        rightMotorData = receivedData.motor_data.rightMotor || {};
+        sensorData = receivedData.sensor_data || {};
 
         // Handle AMS data (existing logic)
-        if (receivedData.TSV !== undefined || receivedData.TSC !== undefined) {
-          setAmsData(receivedData);
+        if (amsData.TSV !== undefined || amsData.TSC !== undefined) {
+          setAmsData(amsData);
           setLastUpdate(prev => ({ ...prev, ams: now }));
 
           // Update chart data and table data (existing logic)
           let formattedTime = "Unknown";
-          let originalTime = receivedData.DB_TIME;
+          let originalTime = amsData.DB_TIME;
           
-          if (receivedData.DB_TIME) {
+          if (amsData.DB_TIME) {
             try {
-              const date = new Date(receivedData.DB_TIME);
+              const date = new Date(amsData.DB_TIME);
               formattedTime = date.toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -291,10 +296,10 @@ const App = () => {
           
           setTableData(prevData => {
             const newRow = {};
-            columns.forEach(col => {
-              if (col === "DB_TIME" && receivedData[col]) {
+            ams_columns.forEach(col => {
+              if (col === "DB_TIME" && amsData[col]) {
                 try {
-                  const date = new Date(receivedData[col]);
+                  const date = new Date(amsData[col]);
                   newRow[col] = date.toLocaleString('en-US', {
                     year: 'numeric',
                     month: '2-digit',
@@ -305,10 +310,10 @@ const App = () => {
                     hour12: false
                   }).replace(',', '');
                 } catch (error) {
-                  newRow[col] = receivedData[col];
+                  newRow[col] = amsData[col];
                 }
               } else {
-                newRow[col] = receivedData[col] !== undefined ? receivedData[col] : "N/A";
+                newRow[col] = amsData[col] !== undefined ? amsData[col] : "N/A";
               }
             });
             
@@ -323,33 +328,33 @@ const App = () => {
         }
 
         // Handle Motor data
-        if (receivedData.motor_side !== undefined) {
+        if (leftMotorData !== undefined) {
           setMotorData(prevData => ({
             ...prevData,
             [receivedData.motor_side.toLowerCase()]: {
-              torque_out: receivedData.torque_out,
-              torque_cmd: receivedData.torque_cmd,
-              filtered_rpm: receivedData.filtered_rpm,
-              i_ist: receivedData.i_ist,
-              dc_bus_voltage: receivedData.dc_bus_voltage,
-              timestamp: receivedData.timestamp || now
+              torque_out: leftMotorData.torque_out,
+              torque_cmd: leftMotorData.torque_cmd,
+              filtered_rpm: leftMotorData.filtered_rpm,
+              i_ist: leftMotorData.i_ist,
+              dc_bus_voltage: leftMotorData.dc_bus_voltage,
+              timestamp: leftMotorData.timestamp || now
             }
           }));
           setLastUpdate(prev => ({ ...prev, motor: now }));
         }
 
         // Handle Sensor data
-        if (receivedData.apps1 !== undefined || receivedData.yaw_rate !== undefined) {
+        if (sensorData.apps1_raw !== undefined || sensorData.yaw_rate !== undefined) {
           setSensorData({
-            apps1: receivedData.apps1,
-            apps2: receivedData.apps2,
-            bps2: receivedData.bps2,
-            steer_raw: receivedData.steer_raw,
-            yaw_rate: receivedData.yaw_rate,
-            accel_x: receivedData.accel_x,
-            accel_y: receivedData.accel_y,
-            yaw_angular_accel: receivedData.yaw_angular_accel,
-            timestamp: receivedData.timestamp || now
+            apps1: sensorData.apps1_raw,
+            apps2: sensorData.apps2_raw,
+            bps2: sensorData.bps2_raw,
+            steer_raw: sensorData.steer_raw,
+            yaw_rate: sensorData.yaw_rate,
+            accel_x: sensorData.acc_x,
+            accel_y: sensorData.acc_y,
+            yaw_angular_accel: sensorData.yaw_ang_acc,
+            timestamp: sensorData.timestamp || now
           });
           setLastUpdate(prev => ({ ...prev, sensor: now }));
         }
@@ -466,8 +471,8 @@ const App = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricCard title="TSV" value={amsData.TSV?.toFixed(1)} unit="V" size="large" />
                 <MetricCard title="TSC" value={amsData.TSC?.toFixed(1)} unit="A" size="large" />
-                <MetricCard title="Left RPM" value={motorData.left.filtered_rpm} unit="RPM" />
-                <MetricCard title="Right RPM" value={motorData.right.filtered_rpm} unit="RPM" />
+                <MetricCard title="Left RPM" value={leftMotorData.filtered_rpm} unit="RPM" />
+                <MetricCard title="Right RPM" value={rightMotorData.filtered_rpm} unit="RPM" />
               </div>
 
               {/* Main Dashboard Grid */}
@@ -481,10 +486,10 @@ const App = () => {
                   <div className={`p-4 rounded-lg border ${darkMode ? 'border-gray-600 bg-gray-700' : 'border-gray-200 bg-white'}`}>
                     <h3 className={`text-lg font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Left Motor</h3>
                     <div className="grid grid-cols-2 gap-3">
-                      <MetricCard title="Torque Out" value={motorData.left.torque_out?.toFixed(1)} unit="Nm" size="small" />
-                      <MetricCard title="Torque Cmd" value={motorData.left.torque_cmd?.toFixed(1)} unit="Nm" size="small" />
-                      <MetricCard title="Current" value={motorData.left.i_ist?.toFixed(2)} unit="A" size="small" />
-                      <MetricCard title="DC Bus V" value={motorData.left.dc_bus_voltage?.toFixed(1)} unit="V" size="small" />
+                      <MetricCard title="Torque Out" value={leftMotorData.torque_out?.toFixed(1)} unit="Nm" size="small" />
+                      <MetricCard title="Torque Cmd" value={leftMotorData.torque_cmd?.toFixed(1)} unit="Nm" size="small" />
+                      <MetricCard title="Current" value={leftMotorData.i_ist?.toFixed(2)} unit="A" size="small" />
+                      <MetricCard title="DC Bus V" value={leftMotorData.dc_bus_voltage?.toFixed(1)} unit="V" size="small" />
                     </div>
                   </div>
 
@@ -492,10 +497,10 @@ const App = () => {
                   <div className={`p-4 rounded-lg border ${darkMode ? 'border-gray-600 bg-gray-700' : 'border-gray-200 bg-white'}`}>
                     <h3 className={`text-lg font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Right Motor</h3>
                     <div className="grid grid-cols-2 gap-3">
-                      <MetricCard title="Torque Out" value={motorData.right.torque_out?.toFixed(1)} unit="Nm" size="small" />
-                      <MetricCard title="Torque Cmd" value={motorData.right.torque_cmd?.toFixed(1)} unit="Nm" size="small" />
-                      <MetricCard title="Current" value={motorData.right.i_ist?.toFixed(2)} unit="A" size="small" />
-                      <MetricCard title="DC Bus V" value={motorData.right.dc_bus_voltage?.toFixed(1)} unit="V" size="small" />
+                      <MetricCard title="Torque Out" value={rightMotorData.torque_out?.toFixed(1)} unit="Nm" size="small" />
+                      <MetricCard title="Torque Cmd" value={rightMotorData.torque_cmd?.toFixed(1)} unit="Nm" size="small" />
+                      <MetricCard title="Current" value={rightMotorData.i_ist?.toFixed(2)} unit="A" size="small" />
+                      <MetricCard title="DC Bus V" value={rightMotorData.dc_bus_voltage?.toFixed(1)} unit="V" size="small" />
                     </div>
                   </div>
                 </div>
@@ -566,30 +571,30 @@ const App = () => {
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS1</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.apps1?.toFixed(0) || '--'}%
+                            {sensorData.apps1_raw?.toFixed(0) || '--'}%
                           </span>
                         </div>
-                        <ProgressBar value={sensorData.apps1 || 0} max={100} color="purple" showPercentage={false} />
+                        <ProgressBar value={sensorData.apps1_raw || 0} max={100} color="purple" showPercentage={false} />
                       </div>
                       
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS2</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.apps2?.toFixed(0) || '--'}%
+                            {sensorData.apps2_raw?.toFixed(0) || '--'}%
                           </span>
                         </div>
-                        <ProgressBar value={sensorData.apps2 || 0} max={100} color="purple" showPercentage={false} />
+                        <ProgressBar value={sensorData.apps2_raw || 0} max={100} color="purple" showPercentage={false} />
                       </div>
                       
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>BPS2</span>
                           <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sensorData.bps2?.toFixed(0) || '--'}%
+                            {sensorData.bps2_raw?.toFixed(0) || '--'}%
                           </span>
                         </div>
-                        <ProgressBar value={sensorData.bps2 || 0} max={100} color="red" showPercentage={false} />
+                        <ProgressBar value={sensorData.bps2_raw || 0} max={100} color="red" showPercentage={false} />
                       </div>
                     </div>
                   </div>
@@ -631,7 +636,7 @@ const App = () => {
                   <div className="flex justify-between items-center">
                     <div className="text-center">
                       <div className={`text-2xl font-bold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                        {motorData.left.filtered_rpm || '--'}
+                        {leftMotorData.filtered_rpm || '--'}
                       </div>
                       <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Left RPM</div>
                     </div>
@@ -640,19 +645,19 @@ const App = () => {
                         <div 
                           className="h-2 bg-blue-500 rounded-full absolute"
                           style={{ 
-                            width: `${Math.abs((motorData.left.filtered_rpm || 0) - (motorData.right.filtered_rpm || 0)) / 100}%`,
-                            left: (motorData.left.filtered_rpm || 0) > (motorData.right.filtered_rpm || 0) ? '50%' : 'auto',
-                            right: (motorData.left.filtered_rpm || 0) < (motorData.right.filtered_rpm || 0) ? '50%' : 'auto'
+                            width: `${Math.abs((leftMotorData.filtered_rpm || 0) - (rightMotorData.filtered_rpm || 0)) / 100}%`,
+                            left: (leftMotorData.filtered_rpm || 0) > (rightMotorData.filtered_rpm || 0) ? '50%' : 'auto',
+                            right: (leftMotorData.filtered_rpm || 0) < (rightMotorData.filtered_rpm || 0) ? '50%' : 'auto'
                           }}
                         />
                       </div>
                       <div className={`text-xs text-center mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Δ {Math.abs((motorData.left.filtered_rpm || 0) - (motorData.right.filtered_rpm || 0)).toFixed(0)} RPM
+                        Δ {Math.abs((leftMotorData.filtered_rpm || 0) - (rightMotorData.filtered_rpm || 0)).toFixed(0)} RPM
                       </div>
                     </div>
                     <div className="text-center">
                       <div className={`text-2xl font-bold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
-                        {motorData.right.filtered_rpm || '--'}
+                        {rightMotorData.filtered_rpm || '--'}
                       </div>
                       <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Right RPM</div>
                     </div>
@@ -664,23 +669,23 @@ const App = () => {
                   <h3 className={`text-lg font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>APPS Correlation</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS1: {sensorData.apps1?.toFixed(0) || '--'}%</span>
-                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS2: {sensorData.apps2?.toFixed(0) || '--'}%</span>
+                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS1: {sensorData.apps1_raw?.toFixed(0) || '--'}%</span>
+                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>APPS2: {sensorData.apps2_raw?.toFixed(0) || '--'}%</span>
                     </div>
                     <div className="relative h-16 w-full">
                       <div className={`absolute inset-0 border-2 rounded ${darkMode ? 'border-gray-600' : 'border-gray-300'}`}>
                         <div 
                           className="absolute w-2 h-2 bg-purple-500 rounded-full"
                           style={{
-                            left: `${(sensorData.apps1 || 0)}%`,
-                            bottom: `${(sensorData.apps2 || 0)}%`,
+                            left: `${(sensorData.apps1_raw || 0)}%`,
+                            bottom: `${(sensorData.apps2_raw || 0)}%`,
                             transform: 'translate(-50%, 50%)'
                           }}
                         />
                       </div>
                       <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-                        Correlation: {sensorData.apps1 && sensorData.apps2 ? 
-                          (Math.abs(sensorData.apps1 - sensorData.apps2) < 5 ? '✅ Good' : '⚠️ Check') : 
+                        Correlation: {sensorData.apps1_raw && sensorData.apps2_raw ? 
+                          (Math.abs(sensorData.apps1_raw - sensorData.apps2_raw) < 5 ? '✅ Good' : '⚠️ Check') : 
                           '--'
                         }
                       </div>
@@ -716,7 +721,7 @@ const App = () => {
                 <table className={`min-w-full ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
                   <thead className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} sticky top-0`}>
                     <tr>
-                      {columns.map((col) => (
+                      {ams_columns.map((col) => (
                         <th 
                           key={col}
                           className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider border-r ${darkMode ? 'border-gray-600' : 'border-gray-200'}`}
@@ -729,7 +734,7 @@ const App = () => {
                   <tbody className={`${darkMode ? 'bg-gray-800' : 'bg-white'} divide-y ${darkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
                     {tableData.map((row, index) => (
                       <tr key={index} className={`${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
-                        {columns.map((col) => (
+                        {ams_columns.map((col) => (
                           <td 
                             key={col}
                             className={`px-3 py-2 whitespace-nowrap text-sm ${darkMode ? 'text-gray-300' : 'text-gray-900'} border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
