@@ -234,7 +234,7 @@ function getRecentSensorData(ws) {
         
         results.reverse().forEach(row => {
             const message = {
-                sensor_data: {row}
+                sensor_data: row
             };
             ws.send(JSON.stringify(message));
         });
@@ -253,7 +253,7 @@ wss.on("connection", (ws) => {
             console.error("Failed to fetch historical AMS data:", err);
         } else if (results.length > 0) {
             results.reverse().forEach(row => {
-                ws.send(JSON.stringify(row));
+                ws.send(JSON.stringify({ams_data: row}));
             });
         }
     });
