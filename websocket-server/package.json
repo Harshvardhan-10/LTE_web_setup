@@ -11,9 +11,13 @@
   "description": "",
   "dependencies": {
     "aws-iot-device-sdk": "^2.2.15",
+    "aws-iot-device-sdk-v2": "^1.21.1",
+    "aws-sdk": "^2.1692.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "mqtt": "^5.10.3",
     "mysql2": "^3.11.5",
+    "pg": "^8.13.1",
     "pm2": "^5.4.3",
     "ws": "^8.18.0"
   }

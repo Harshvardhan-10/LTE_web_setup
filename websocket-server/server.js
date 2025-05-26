@@ -266,21 +266,6 @@ const device = awsIot.device({
     host: process.env.AWS_IOT_ENDPOINT             // AWS IoT Core endpoint
 });
 
-console.log("AWS IoT Environment Variables:");
-Object.entries(device).forEach(([key, value]) => {
-    console.log(`${key}: ${value ? 'SET' : 'NOT SET'}`);
-});
-
-// Check if all required AWS IoT variables are set
-const missingVars = Object.entries(device)
-    .filter(([key, value]) => !value)
-    .map(([key]) => key);
-
-if (missingVars.length > 0) {
-    console.warn(`Missing AWS IoT environment variables: ${missingVars.join(', ')}`);
-    console.warn('AWS IoT connection will be skipped. Only HTTP endpoint will be available.');
-}
-
 // MQTT Event Handlers
 device.on('connect', () => {
     console.log('Connected to AWS IoT Core');
@@ -301,7 +286,7 @@ device.on('message', (topic, payload) => {
         
         // Handle different types of data
         if (data.ams_data) {
-            saveAMSData(data.ams_data);
+            saveToDatabase(data.ams_data);
         }
         
         if (data.motor_data) {
@@ -327,7 +312,7 @@ app.post("/data", (req, res) => {
 
     // Handle different types of data
     if (data.ams_data) {
-        saveAMSData(data.ams_data);
+        saveToDatabase(data.ams_data);
     }
     
     if (data.motor_data) {
