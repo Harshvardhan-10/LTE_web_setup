@@ -199,7 +199,7 @@ function getRecentMotorData(ws) {
         
         results.reverse().forEach(row => {
             const message = {
-                type: row.motor_side === 'LEFT' ? 'leftMotorUpdate' : 'rightMotorUpdate',
+                type: row.motor_side === 'LEFT' ? 'leftMotor' : 'rightMotor',
                 data: row
             };
             ws.send(JSON.stringify(message));
@@ -218,7 +218,7 @@ function getRecentSensorData(ws) {
         
         results.reverse().forEach(row => {
             const message = {
-                type: 'sensorUpdate',
+                type: 'sensor_data',
                 data: row
             };
             ws.send(JSON.stringify(message));

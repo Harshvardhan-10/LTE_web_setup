@@ -327,7 +327,7 @@ const App = () => {
           });
         }
 
-        if (motorData.left && motorData.right) {
+        if (leftMotorData && rightMotorData) {
           setMotorData({
               left: {
                 ...leftMotorData,
