@@ -250,8 +250,8 @@ const App = () => {
       if (typeof receivedData === "object" && receivedData !== null && flag === 1) {
         const now = new Date().toISOString();
         amsData = receivedData.ams_data || {};
-        motorData.left = receivedData.motor_data.leftMotor || {};
-        motorData.right = receivedData.motor_data.rightMotor || {};
+        const leftMotorData = receivedData.motor_data?.leftMotor || {};
+        const rightMotorData = receivedData.motor_data?.rightMotor || {};
         sensorData = receivedData.sensor_data || {};
 
         // Handle AMS data (existing logic)
@@ -329,14 +329,14 @@ const App = () => {
 
         if (motorData.left && motorData.right) {
           setMotorData({
-            left: {
-              ...motorData.left,
-              timestamp: motorData.left.timestamp || now
-            },
-            right: {
-              ...motorData.right,
-              timestamp: motorData.right.timestamp || now
-            }
+              left: {
+                ...leftMotorData,
+                timestamp: leftMotorData.timestamp || now
+              },
+              right: {
+                ...rightMotorData,
+                timestamp: rightMotorData.timestamp || now
+              }
           });
           setLastUpdate(prev => ({ ...prev, motor: now }));
         }

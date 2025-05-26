@@ -69,7 +69,7 @@ function saveMotorData(data) {
                 if (rows.length > 0) {
                     broadcast(JSON.stringify({
                         motor_data: {
-                            rightMotor: rows[0]
+                            leftMotor: rows[0]
                         }
                     }));
                 }
