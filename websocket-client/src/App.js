@@ -303,8 +303,8 @@ const App = () => {
             const newData = [...prevData, {
               time: formattedTime,
               originalTime: originalTime || new Date().toISOString(),
-              TSV: receivedData.TSV || 0,
-              TSC: receivedData.TSC || 0
+              TSV: amsData.TSV || 0,
+              TSC: amsData.TSC || 0
             }];
             return newData.length > 50 ? newData.slice(-50) : newData;
           });
@@ -359,8 +359,8 @@ const App = () => {
         // Handle Sensor data
         if (sensorData.apps1_raw !== undefined || sensorData.yaw_rate !== undefined) {
           setSensorData({
-            apps1: sensorData.apps1_raw,
-            apps2: sensorData.apps2_raw,
+            apps1_raw: sensorData.apps1_raw,
+            apps2_raw: sensorData.apps2_raw,
             bps2_raw: sensorData.bps2_raw,
             steer_raw: sensorData.steer_raw,
             yaw_rate: sensorData.yaw_rate,
@@ -482,8 +482,8 @@ const App = () => {
             <div className="space-y-6">
               {/* Top Status Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard title="TSV" value={amsData.TSV?.toFixed(1)} unit="V" size="large" />
-                <MetricCard title="TSC" value={amsData.TSC?.toFixed(1)} unit="A" size="large" />
+                <MetricCard title="TSV" value={amsData.TSV?.toFixed(1)} unit="V dc" size="large" />
+                <MetricCard title="TSC" value={amsData.TSC?.toFixed(1)} unit="A dc" size="large" />
                 <MetricCard title="Left RPM" value={motorData.left.filtered_rpm} unit="RPM" />
                 <MetricCard title="Right RPM" value={motorData.right.filtered_rpm} unit="RPM" />
               </div>
