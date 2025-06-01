@@ -52,148 +52,177 @@ function checkAndBroadcast() {
 
 function saveMotorData(data) {
     // Handle LEFT motor
-    if (data.leftMotor) {
-        pendingOperations++;
+    if (data.leftMotor && data.leftMotor.data) {
         const leftQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?)";
         const leftValues = [
             'LEFT', 
-            data.leftMotor.torque_out, 
-            data.leftMotor.torque_cmd, 
-            data.leftMotor.filtered_rpm, 
-            data.leftMotor.i_ist, 
-            data.leftMotor.dc_bus_voltage
+            data.leftMotor.data[0], // torque_out
+            data.leftMotor.data[1], // torque_cmd
+            data.leftMotor.data[2], // filtered_rpm
+            data.leftMotor.data[3], // i_ist
+            data.leftMotor.data[4]  // dc_bus_voltage
         ];
 
         db.query(leftQuery, leftValues, (err, result) => {
             if (err) {
                 console.error("Failed to insert LEFT motor data into MySQL:", err);
-                pendingOperations--;
-                checkAndBroadcast();
                 return;
             }
 
             console.log("LEFT motor data stored in MySQL:", result);
 
-            // Fetch and add to buffer
+            // Fetch and broadcast the complete row
             const fetchQuery = "SELECT * FROM motor_data WHERE id = ?";
             db.query(fetchQuery, [result.insertId], (fetchErr, rows) => {
                 if (fetchErr) {
                     console.error("Failed to fetch LEFT motor data:", fetchErr);
-                } else if (rows.length > 0) {
-                    if (!dataBuffer.motor_data) {
-                        dataBuffer.motor_data = {};
-                    }
-                    dataBuffer.motor_data.leftMotor = rows[0];
+                    return;
                 }
-                
-                pendingOperations--;
-                checkAndBroadcast();
+
+                if (rows.length > 0) {
+                    broadcast(JSON.stringify({
+                        motor_data: {
+                            leftMotor: rows[0]
+                        }
+                    }));
+                }
             });
         });
     }
 
     // Handle RIGHT motor
-    if (data.rightMotor) {
-        pendingOperations++;
+    if (data.rightMotor && data.rightMotor.data) {
         const rightQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?)";
         const rightValues = [
             'RIGHT', 
-            data.rightMotor.torque_out, 
-            data.rightMotor.torque_cmd, 
-            data.rightMotor.filtered_rpm, 
-            data.rightMotor.i_ist, 
-            data.rightMotor.dc_bus_voltage
+            data.rightMotor.data[0], // torque_out
+            data.rightMotor.data[1], // torque_cmd
+            data.rightMotor.data[2], // filtered_rpm
+            data.rightMotor.data[3], // i_ist
+            data.rightMotor.data[4]  // dc_bus_voltage
         ];
 
         db.query(rightQuery, rightValues, (err, result) => {
             if (err) {
                 console.error("Failed to insert RIGHT motor data into MySQL:", err);
-                pendingOperations--;
-                checkAndBroadcast();
                 return;
             }
 
             console.log("RIGHT motor data stored in MySQL:", result);
 
-            // Fetch and add to buffer
+            // Fetch and broadcast the complete row
             const fetchQuery = "SELECT * FROM motor_data WHERE id = ?";
             db.query(fetchQuery, [result.insertId], (fetchErr, rows) => {
                 if (fetchErr) {
                     console.error("Failed to fetch RIGHT motor data:", fetchErr);
-                } else if (rows.length > 0) {
-                    if (!dataBuffer.motor_data) {
-                        dataBuffer.motor_data = {};
-                    }
-                    dataBuffer.motor_data.rightMotor = rows[0];
+                    return;
                 }
-                
-                pendingOperations--;
-                checkAndBroadcast();
+
+                if (rows.length > 0) {
+                    broadcast(JSON.stringify({
+                        motor_data: {
+                            rightMotor: rows[0]
+                        }
+                    }));
+                }
             });
         });
     }
 }
 
 function saveSensorData(data) {
-    pendingOperations++;
+    // Check if data array exists and has the expected length
+    if (!data.data || data.data.length < 8) {
+        console.error("Invalid sensor data format or insufficient data points");
+        return;
+    }
+
     const query = "INSERT INTO sensor_data (apps1_raw, apps2_raw, bps2_raw, steer_raw, yaw_rate, acc_y, yaw_ang_acc, acc_x) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
-        data.apps1_raw, data.apps2_raw, data.bps2_raw, data.steer_raw, 
-        data.yaw_rate, data.acc_y, data.yaw_ang_acc, data.acc_x
+        data.data[0], // apps1_raw
+        data.data[1], // apps2_raw
+        data.data[2], // bps2_raw
+        data.data[3], // steer_raw
+        data.data[4], // yaw_rate
+        data.data[5], // acc_y
+        data.data[6], // yaw_ang_acc
+        data.data[7]  // acc_x
     ];
 
     db.query(query, values, (err, result) => {
         if (err) {
             console.error("Failed to insert data into MySQL(sensor_data):", err);
-            pendingOperations--;
-            checkAndBroadcast();
             return;
         }
         
         console.log("Data stored in MySQL(sensor_data):", result);
         
+        // Get the inserted ID
+        const insertId = result.insertId;
+        
+        // Query to get the complete row including the auto-generated timestamp
         const fetchQuery = "SELECT * FROM sensor_data WHERE id = ?";
-        db.query(fetchQuery, [result.insertId], (fetchErr, rows) => {
+        db.query(fetchQuery, [insertId], (fetchErr, rows) => {
             if (fetchErr) {
-                console.error("Failed to fetch complete sensor data:", fetchErr);
-            } else if (rows.length > 0) {
-                dataBuffer.sensor_data = rows[0];
+                console.error("Failed to fetch complete data:", fetchErr);
+                return;
             }
             
-            pendingOperations--;
-            checkAndBroadcast();
+            if (rows.length > 0) {
+                // Broadcast the complete data including ID and DB_timestamp
+                broadcast(JSON.stringify({ sensor_data: rows[0] }));
+            }
         });
     });
 }
 
 function saveAMSData(data) {
-    pendingOperations++;
+    // Check if data array exists and has the expected length
+    if (!data.data || data.data.length < 12) {
+        console.error("Invalid AMS data format or insufficient data points");
+        return;
+    }
+
     const query = "INSERT INTO ams_flt (Teensy_time, TSV, TSC, CON_SRC, CON_SRC_IL, TO_AMS_RELAY, PRE_PLAUS, C_PLUS, C_MINUS, C_PLUS_PLAUS, C_MINUS_PLAUS, GT_60V_PLAUS, PRE_MECH) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
-        data.Teensy_time, data.TSV, data.TSC, data.CON_SRC, data.CON_SRC_IL, data.TO_AMS_RELAY, data.PRE_PLAUS, data.C_PLUS, 
-        data.C_MINUS, data.C_PLUS_PLAUS, data.C_MINUS_PLAUS, data.GT_60V_PLAUS, data.PRE_MECH
+        data.Teensy_time, // This remains as a separate field
+        data.data[0],     // TSV
+        data.data[1],     // TSC
+        data.data[2],     // CON_SRC
+        data.data[3],     // CON_SRC_IL
+        data.data[4],     // TO_AMS_RELAY
+        data.data[5],     // PRE_PLAUS
+        data.data[6],     // C_PLUS
+        data.data[7],     // C_MINUS
+        data.data[8],     // C_PLUS_PLAUS
+        data.data[9],     // C_MINUS_PLAUS
+        data.data[10],    // GT_60V_PLAUS
+        data.data[11]     // PRE_MECH
     ];
 
     db.query(query, values, (err, result) => {
         if (err) {
             console.error("Failed to insert data into MySQL(ams_data):", err);
-            pendingOperations--;
-            checkAndBroadcast();
             return;
         }
         
         console.log("Data stored in MySQL(ams_data):", result);
         
+        // Get the inserted ID
+        const insertId = result.insertId;
+        
+        // Query to get the complete row including the auto-generated timestamp
         const fetchQuery = "SELECT * FROM ams_flt WHERE id = ?";
-        db.query(fetchQuery, [result.insertId], (fetchErr, rows) => {
+        db.query(fetchQuery, [insertId], (fetchErr, rows) => {
             if (fetchErr) {
-                console.error("Failed to fetch complete AMS data:", fetchErr);
-            } else if (rows.length > 0) {
-                dataBuffer.ams_data = rows[0];
+                console.error("Failed to fetch complete data:", fetchErr);
+                return;
             }
             
-            pendingOperations--;
-            checkAndBroadcast();
+            if (rows.length > 0) {
+                // Broadcast the complete data including ID and DB_timestamp
+                broadcast(JSON.stringify({ ams_data: rows[0] }));
+            }
         });
     });
 }
