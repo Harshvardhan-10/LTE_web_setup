@@ -176,6 +176,78 @@ function saveSensorData(data) {
     });
 }
 
+function handleWebSocketCommand(ws, message) {
+    try {
+        const command = JSON.parse(message);
+        console.log('Received WebSocket command:', command);
+        
+        // Handle ECU error trigger command
+        if (command.command === 'trigger_ecu_error') {
+            console.log('Processing ECU error trigger command');
+            
+            // Define your MQTT topic for ECU commands
+            const mqttTopic = 'lte-module/ecu/commands'; // Change this to your desired topic
+            
+            // Create the MQTT payload
+            const mqttPayload = {
+                command: 'trigger_ecu_error',
+                timestamp: new Date().toISOString(),
+                source: 'web-dashboard',
+                payload: {
+                    error_type: 'simulated_error',
+                    severity: 'high',
+                    message: 'ECU error triggered from web dashboard'
+                }
+            };
+            
+            // Publish to MQTT
+            device.publish(mqttTopic, JSON.stringify(mqttPayload), (err) => {
+                if (err) {
+                    console.error('Failed to publish ECU error command to MQTT:', err);
+                    
+                    // Send error response back to frontend
+                    ws.send(JSON.stringify({
+                        type: 'command_response',
+                        command: 'trigger_ecu_error',
+                        success: false,
+                        error: err.message,
+                        timestamp: new Date().toISOString()
+                    }));
+                } else {
+                    console.log(`Successfully published ECU error command to MQTT topic: ${mqttTopic}`);
+                    console.log('MQTT Payload:', mqttPayload);
+                    
+                    // Send success response back to frontend
+                    ws.send(JSON.stringify({
+                        type: 'command_response',
+                        command: 'trigger_ecu_error',
+                        success: true,
+                        message: 'ECU error command sent successfully',
+                        topic: mqttTopic,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            });
+        }
+        
+        // You can add more command types here
+        // else if (command.command === 'other_command') {
+        //     // Handle other commands
+        // }
+        
+    } catch (error) {
+        console.error('Error parsing WebSocket command:', error);
+        
+        // Send error response for invalid JSON
+        ws.send(JSON.stringify({
+            type: 'command_response',
+            success: false,
+            error: 'Invalid command format',
+            timestamp: new Date().toISOString()
+        }));
+    }
+}
+
 function saveAMSData(data) {
     // Check if data array exists and has the expected length
     if (!data.data || data.data.length < 12) {
@@ -301,24 +373,24 @@ wss.on("connection", (ws) => {
     getRecentSensorData(ws);
 
     ws.on("message", (message) => {
-        console.log("Received from WebSocket client:", message);
-        broadcast(message);
-    });
-
-    ws.on("message", (message) => {
-        console.log("Received from WebSocket client:", message);
-
+        const messageStr = message.toString();
+        console.log("Received from WebSocket client:", messageStr);
+        
+        // Try to parse the message and check if it's a command
         try {
-            // Convert Buffer to string
-            const parsed = JSON.parse(message.toString());
-            if (parsed.command === "trigger_ecu_error") {
-            console.log("Triggering ECU error via MQTT...");
-            device.publish("lte-module/trigger_ecu_error", JSON.stringify({ error: "triggered" }));
+            const parsed = JSON.parse(messageStr);
+            
+            // Check if it's a command message
+            if (parsed.command) {
+                handleWebSocketCommand(ws, messageStr);
+                return; // Don't broadcast command messages
             }
-        } catch (err) {
-            console.error("Failed to parse WebSocket message:", err);
+        } catch (e) {
+            // If parsing fails, treat as regular message for broadcasting
+            console.log("Message is not JSON, treating as regular broadcast message");
         }
-
+        
+        // If not a command, broadcast to all clients (existing functionality)
         broadcast(message);
     });
 
