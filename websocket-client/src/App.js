@@ -262,8 +262,8 @@ const App = () => {
       if (typeof receivedData === "object" && receivedData !== null && flag === 1) {
         const now = new Date().toISOString();
         amsData = receivedData.ams_data || {};
-        const leftMotorData = receivedData.motor_data?.leftMotor || {};
-        const rightMotorData = receivedData.motor_data?.rightMotor || {};
+        const leftMotorData = receivedData.motor_data?.leftMotor || null;
+        const rightMotorData = receivedData.motor_data?.rightMotor || null;
         sensorData = receivedData.sensor_data || {};
 
         // console.log("Right Motor Data: ", rightMotorData);
@@ -342,20 +342,43 @@ const App = () => {
           });
         }
 
-        if (leftMotorData || rightMotorData) {
-          setMotorData({
-              left: {
-                ...leftMotorData,
-                timestamp: leftMotorData.timestamp || now
-              },
-              right: {
-                ...rightMotorData,
-                timestamp: rightMotorData.timestamp || now
-              }
-          });
+        // if (leftMotorData || rightMotorData) {
+        //   setMotorData({
+        //       left: {
+        //         ...leftMotorData,
+        //         timestamp: leftMotorData.timestamp || now
+        //       },
+        //       right: {
+        //         ...rightMotorData,
+        //         timestamp: rightMotorData.timestamp || now
+        //       }
+        //   });
+        //   setLastUpdate(prev => ({ ...prev, motor: now }));
+        // }
+        // Handle Motor data - UPDATE INDIVIDUAL MOTORS
+        if (leftMotorData) {
+          console.log("Updating LEFT motor data:", leftMotorData);
+          setMotorData(prevData => ({
+            ...prevData,
+            left: {
+              ...leftMotorData,
+              timestamp: leftMotorData.timestamp || now
+            }
+          }));
           setLastUpdate(prev => ({ ...prev, motor: now }));
         }
 
+        if (rightMotorData) {
+          console.log("Updating RIGHT motor data:", rightMotorData);
+          setMotorData(prevData => ({
+            ...prevData,
+            right: {
+              ...rightMotorData,
+              timestamp: rightMotorData.timestamp || now
+            }
+          }));
+          setLastUpdate(prev => ({ ...prev, motor: now }));
+        }
         // Handle Sensor data
         if (sensorData.apps1_raw !== undefined || sensorData.yaw_rate !== undefined) {
           setSensorData({

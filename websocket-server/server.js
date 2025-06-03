@@ -185,7 +185,7 @@ function saveAMSData(data) {
 
     const query = "INSERT INTO ams_flt (Teensy_time, TSV, TSC, CON_SRC, CON_SRC_IL, TO_AMS_RELAY, PRE_PLAUS, C_PLUS, C_MINUS, C_PLUS_PLAUS, C_MINUS_PLAUS, GT_60V_PLAUS, PRE_MECH) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
-        data.Teensy_time, // This remains as a separate field
+        data.time, // This remains as a separate field
         data.data[0],     // TSV
         data.data[1],     // TSC
         data.data[2],     // CON_SRC
@@ -332,16 +332,16 @@ device.on('message', (topic, payload) => {
         pendingOperations = 0;
         
         // Handle different types of data
-        if (data.ams_data) {
-            saveAMSData(data.ams_data);
+        if (data.ams) {
+            saveAMSData(data.ams);
         }
         
-        if (data.motor_data) {
-            saveMotorData(data.motor_data);
+        if (data.motor) {
+            saveMotorData(data.motor);
         }
         
-        if (data.sensor_data) {
-            saveSensorData(data.sensor_data);
+        if (data.sensor) {
+            saveSensorData(data.sensor);
         }
     } catch (error) {
         console.error('Error processing MQTT message:', error);
@@ -362,16 +362,16 @@ app.post("/data", (req, res) => {
     pendingOperations = 0;
 
     // Handle different types of data
-    if (data.ams_data) {
-        saveAMSData(data.ams_data);
+    if (data.ams) {
+        saveAMSData(data.ams);
     }
     
-    if (data.motor_data) {
-        saveMotorData(data.motor_data);
+    if (data.motor) {
+        saveMotorData(data.motor);
     }
     
-    if (data.sensor_data) {
-        saveSensorData(data.sensor_data);
+    if (data.sensor) {
+        saveSensorData(data.sensor);
     }
 
     res.sendStatus(200);
