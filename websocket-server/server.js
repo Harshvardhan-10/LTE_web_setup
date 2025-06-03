@@ -270,6 +270,15 @@ function getRecentSensorData(ws) {
     });
 }
 
+// MQTT Connection using aws-iot-device-sdk
+const device = awsIot.device({
+    keyPath: process.env.AWS_IOT_PRIVATE_KEY,
+    certPath: process.env.AWS_IOT_CERTIFICATE,
+    caPath: process.env.AWS_IOT_ROOT_CA,
+    clientId: `server-2131231`,
+    host: process.env.AWS_IOT_ENDPOINT
+});
+
 // Updated WebSocket connection handler
 wss.on("connection", (ws) => {
     console.log("Client connected");
@@ -316,15 +325,6 @@ wss.on("connection", (ws) => {
     ws.on("close", () => {
         console.log("Client disconnected");
     });
-});
-
-// MQTT Connection using aws-iot-device-sdk
-const device = awsIot.device({
-    keyPath: process.env.AWS_IOT_PRIVATE_KEY,
-    certPath: process.env.AWS_IOT_CERTIFICATE,
-    caPath: process.env.AWS_IOT_ROOT_CA,
-    clientId: `server-2131231`,
-    host: process.env.AWS_IOT_ENDPOINT
 });
 
 // MQTT Event Handlers
