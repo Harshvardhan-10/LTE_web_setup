@@ -186,7 +186,7 @@ function handleWebSocketCommand(ws, message) {
             console.log('Processing ECU error trigger command');
             
             // Define your MQTT topic for ECU commands
-            const mqttTopic = 'lte-module/ecu/commands'; // Change this to your desired topic
+            const mqttTopic = 'lte-module/trigger_ecu_error'; // Change this to your desired topic
             
             // Create the MQTT payload
             const mqttPayload = {
@@ -347,7 +347,7 @@ const device = awsIot.device({
     keyPath: process.env.AWS_IOT_PRIVATE_KEY,
     certPath: process.env.AWS_IOT_CERTIFICATE,
     caPath: process.env.AWS_IOT_ROOT_CA,
-    clientId: `server-2131231`,
+    clientId: `server-${Date.now()}`,
     host: process.env.AWS_IOT_ENDPOINT
 });
 
