@@ -342,19 +342,6 @@ const App = () => {
           });
         }
 
-        // if (leftMotorData || rightMotorData) {
-        //   setMotorData({
-        //       left: {
-        //         ...leftMotorData,
-        //         timestamp: leftMotorData.timestamp || now
-        //       },
-        //       right: {
-        //         ...rightMotorData,
-        //         timestamp: rightMotorData.timestamp || now
-        //       }
-        //   });
-        //   setLastUpdate(prev => ({ ...prev, motor: now }));
-        // }
         // Handle Motor data - UPDATE INDIVIDUAL MOTORS
         if (leftMotorData) {
           console.log("Updating LEFT motor data:", leftMotorData);
@@ -596,6 +583,23 @@ const App = () => {
                         </div>
                       ))}
                     </div>
+
+                    {/* Trigger ECU Error Button */}
+                    <button
+                      onClick={() => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                          ws.send(JSON.stringify({ command: 'trigger_ecu_error' }));
+                        }
+                      }}
+                      className={`w-full px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                        darkMode 
+                          ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500' 
+                          : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                      } ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={!isConnected}
+                    >
+                      Trigger ECU Error
+                    </button>
                   </div>
                 </div>
 

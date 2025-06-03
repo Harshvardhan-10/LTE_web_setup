@@ -296,6 +296,24 @@ wss.on("connection", (ws) => {
         broadcast(message);
     });
 
+    ws.on("message", (message) => {
+        console.log("Received from WebSocket client:", message);
+
+        try {
+            const parsed = JSON.parse(message);
+            // Check if it's the trigger ECU error command
+            if (parsed.command === "trigger_ecu_error") {
+            console.log("Triggering ECU error via MQTT...");
+            // Publish to your desired MQTT topic
+            device.publish("lte-module/trigger_ecu_error", JSON.stringify({ error: "triggered" }));
+            
+            }
+        } catch (err) {
+            console.error("Failed to parse WebSocket message:", err);
+        }
+        broadcast(message);
+    });
+
     ws.on("close", () => {
         console.log("Client disconnected");
     });
