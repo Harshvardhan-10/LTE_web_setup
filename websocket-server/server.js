@@ -300,17 +300,16 @@ wss.on("connection", (ws) => {
         console.log("Received from WebSocket client:", message);
 
         try {
-            const parsed = JSON.parse(message);
-            // Check if it's the trigger ECU error command
+            // Convert Buffer to string
+            const parsed = JSON.parse(message.toString());
             if (parsed.command === "trigger_ecu_error") {
             console.log("Triggering ECU error via MQTT...");
-            // Publish to your desired MQTT topic
             device.publish("lte-module/trigger_ecu_error", JSON.stringify({ error: "triggered" }));
-            
             }
         } catch (err) {
             console.error("Failed to parse WebSocket message:", err);
         }
+
         broadcast(message);
     });
 
