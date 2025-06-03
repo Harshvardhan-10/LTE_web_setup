@@ -192,12 +192,7 @@ function handleWebSocketCommand(ws, message) {
             const mqttPayload = {
                 command: 'trigger_ecu_error',
                 timestamp: new Date().toISOString(),
-                source: 'web-dashboard',
-                payload: {
-                    error_type: 'simulated_error',
-                    severity: 'high',
-                    message: 'ECU error triggered from web dashboard'
-                }
+                trigger: true // Assuming true means trigger the error
             };
             
             // Publish to MQTT
