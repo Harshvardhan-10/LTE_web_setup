@@ -53,14 +53,15 @@ function checkAndBroadcast() {
 function saveMotorData(data) {
     // Handle LEFT motor
     if (data.leftMotor && data.leftMotor.data) {
-        const leftQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?)";
+        const leftQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, unfiltered_rpm, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?, ?)";
         const leftValues = [
             'LEFT', 
             data.leftMotor.data[0], // torque_out
             data.leftMotor.data[1], // torque_cmd
-            data.leftMotor.data[2], // filtered_rpm
-            data.leftMotor.data[3], // i_ist
-            data.leftMotor.data[4]  // dc_bus_voltage
+            data.leftMotor.data[2], // unfiltered_rpm
+            data.leftMotor.data[3], // filtered_rpm
+            data.leftMotor.data[4], // i_ist
+            data.leftMotor.data[5]  // dc_bus_voltage
         ];
 
         db.query(leftQuery, leftValues, (err, result) => {
@@ -92,14 +93,15 @@ function saveMotorData(data) {
 
     // Handle RIGHT motor
     if (data.rightMotor && data.rightMotor.data) {
-        const rightQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?)";
+        const rightQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, unfiltered_rpm, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?, ?)";
         const rightValues = [
             'RIGHT', 
             data.rightMotor.data[0], // torque_out
             data.rightMotor.data[1], // torque_cmd
-            data.rightMotor.data[2], // filtered_rpm
-            data.rightMotor.data[3], // i_ist
-            data.rightMotor.data[4]  // dc_bus_voltage
+            data.rightMotor.data[2], // unfiltered_rpm
+            data.rightMotor.data[3], // filtered_rpm
+            data.rightMotor.data[4], // i_ist
+            data.rightMotor.data[5]  // dc_bus_voltage
         ];
 
         db.query(rightQuery, rightValues, (err, result) => {
