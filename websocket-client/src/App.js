@@ -493,9 +493,9 @@ const App = () => {
               {/* Top Status Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricCard title="TSV" value={amsData.TSV?.toFixed(1)} unit="V dc" size="large" />
-                <MetricCard title="TSC" value={amsData.TSC?.toFixed(1)} unit="A dc" size="large" />
-                <MetricCard title="Left RPM" value={motorData.left.filtered_rpm} unit="RPM" />
-                <MetricCard title="Right RPM" value={motorData.right.filtered_rpm} unit="RPM" />
+                <MetricCard title="TSC" value={amsData.TSC?.toFixed(2)} unit="A dc" size="large" />
+                <MetricCard title="Left RPM" value={motorData.left.unfiltered_rpm} unit="RPM" />
+                <MetricCard title="Right RPM" value={motorData.right.unfiltered_rpm} unit="RPM" />
               </div>
 
               {/* Main Dashboard Grid */}
@@ -591,7 +591,7 @@ const App = () => {
                           ws.send(JSON.stringify({ command: 'trigger_ecu_error' }));
                         }
                       }}
-                      className={`w-full px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                      className={`mt-4 w-full px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
                         darkMode 
                           ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500' 
                           : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
