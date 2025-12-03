@@ -5,21 +5,25 @@ const WebSocket = require("ws");
 const mysql = require("mysql2");
 const awsIot = require('aws-iot-device-sdk');
 
-// Database configuration
-const db = mysql.createConnection({
+// --- DATABASE CONFIGURATION (UPDATED TO POOL) ---
+const db = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10, // Allows up to 10 simultaneous connections
+    queueLimit: 0
 });
 
-// Connect to the database
-db.connect((err) => {
+// Check connection on startup (Optional, just for logging)
+db.getConnection((err, connection) => {
     if (err) {
         console.error("Database connection failed:", err);
-        process.exit(1);
+    } else {
+        console.log("Connected to MySQL database via Connection Pool");
+        connection.release(); // Always release the connection back to the pool!
     }
-    console.log("Connected to MySQL database");
 });
 
 const app = express();
@@ -41,21 +45,12 @@ function broadcast(data) {
     });
 }
 
-// Function to check if all data is ready and broadcast
-function checkAndBroadcast() {
-    if (pendingOperations === 0 && Object.keys(dataBuffer).length > 0) {
-        console.log("Broadcasting complete data:", dataBuffer);
-        broadcast(JSON.stringify(dataBuffer));
-        dataBuffer = {}; // Reset buffer
-    }
-}
-
 function saveMotorData(data) {
     // Handle LEFT motor
     if (data.leftMotor && data.leftMotor.data) {
         const leftQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, unfiltered_rpm, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?, ?)";
         const leftValues = [
-            'LEFT', 
+            'LEFT',
             data.leftMotor.data[0], // torque_out
             data.leftMotor.data[1], // torque_cmd
             data.leftMotor.data[2], // unfiltered_rpm
@@ -95,7 +90,7 @@ function saveMotorData(data) {
     if (data.rightMotor && data.rightMotor.data) {
         const rightQuery = "INSERT INTO motor_data (motor_side, torque_out, torque_cmd, unfiltered_rpm, filtered_rpm, i_ist, dc_bus_voltage) VALUES (?, ?, ?, ?, ?, ?, ?)";
         const rightValues = [
-            'RIGHT', 
+            'RIGHT',
             data.rightMotor.data[0], // torque_out
             data.rightMotor.data[1], // torque_cmd
             data.rightMotor.data[2], // unfiltered_rpm
@@ -139,7 +134,7 @@ function saveSensorData(data) {
         return;
     }
 
-    const query = "INSERT INTO sensor_data (apps1_raw, apps2_raw, bps2_raw, steer_raw, yaw_rate, acc_y, yaw_ang_acc, acc_x) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    const query = "INSERT INTO sensor_data (apps1_raw, apps2_raw, bps2_raw, steer_raw, yaw_rate, acc_y, yaw_ang_acc, acc_x, acc_z, torq_diff) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
         data.data[0], // apps1_raw
         data.data[1], // apps2_raw
@@ -148,7 +143,9 @@ function saveSensorData(data) {
         data.data[4], // yaw_rate
         data.data[5], // acc_y
         data.data[6], // yaw_ang_acc
-        data.data[7]  // acc_x
+        data.data[7], // acc_x
+	data.data[8], // acc_z
+	data.data[9]  // torq_diff
     ];
 
     db.query(query, values, (err, result) => {
@@ -156,12 +153,12 @@ function saveSensorData(data) {
             console.error("Failed to insert data into MySQL(sensor_data):", err);
             return;
         }
-        
+
         console.log("Data stored in MySQL(sensor_data):", result);
-        
+
         // Get the inserted ID
         const insertId = result.insertId;
-        
+
         // Query to get the complete row including the auto-generated timestamp
         const fetchQuery = "SELECT * FROM sensor_data WHERE id = ?";
         db.query(fetchQuery, [insertId], (fetchErr, rows) => {
@@ -169,7 +166,7 @@ function saveSensorData(data) {
                 console.error("Failed to fetch complete data:", fetchErr);
                 return;
             }
-            
+
             if (rows.length > 0) {
                 // Broadcast the complete data including ID and DB_timestamp
                 broadcast(JSON.stringify({ sensor_data: rows[0] }));
@@ -182,26 +179,26 @@ function handleWebSocketCommand(ws, message) {
     try {
         const command = JSON.parse(message);
         console.log('Received WebSocket command:', command);
-        
+
         // Handle ECU error trigger command
         if (command.command === 'trigger_ecu_error') {
             console.log('Processing ECU error trigger command');
-            
+
             // Define your MQTT topic for ECU commands
             const mqttTopic = 'lte-module/trigger_ecu_error'; // Change this to your desired topic
-            
+
             // Create the MQTT payload
             const mqttPayload = {
                 command: 'trigger_ecu_error',
                 timestamp: new Date().toISOString(),
                 trigger: true // Assuming true means trigger the error
             };
-            
+
             // Publish to MQTT
             device.publish(mqttTopic, JSON.stringify(mqttPayload), (err) => {
                 if (err) {
                     console.error('Failed to publish ECU error command to MQTT:', err);
-                    
+
                     // Send error response back to frontend
                     ws.send(JSON.stringify({
                         type: 'command_response',
@@ -213,7 +210,7 @@ function handleWebSocketCommand(ws, message) {
                 } else {
                     console.log(`Successfully published ECU error command to MQTT topic: ${mqttTopic}`);
                     console.log('MQTT Payload:', mqttPayload);
-                    
+
                     // Send success response back to frontend
                     ws.send(JSON.stringify({
                         type: 'command_response',
@@ -226,15 +223,9 @@ function handleWebSocketCommand(ws, message) {
                 }
             });
         }
-        
-        // You can add more command types here
-        // else if (command.command === 'other_command') {
-        //     // Handle other commands
-        // }
-        
     } catch (error) {
         console.error('Error parsing WebSocket command:', error);
-        
+
         // Send error response for invalid JSON
         ws.send(JSON.stringify({
             type: 'command_response',
@@ -274,12 +265,12 @@ function saveAMSData(data) {
             console.error("Failed to insert data into MySQL(ams_data):", err);
             return;
         }
-        
+
         console.log("Data stored in MySQL(ams_data):", result);
-        
+
         // Get the inserted ID
         const insertId = result.insertId;
-        
+
         // Query to get the complete row including the auto-generated timestamp
         const fetchQuery = "SELECT * FROM ams_flt WHERE id = ?";
         db.query(fetchQuery, [insertId], (fetchErr, rows) => {
@@ -287,7 +278,7 @@ function saveAMSData(data) {
                 console.error("Failed to fetch complete data:", fetchErr);
                 return;
             }
-            
+
             if (rows.length > 0) {
                 // Broadcast the complete data including ID and DB_timestamp
                 broadcast(JSON.stringify({ ams_data: rows[0] }));
@@ -298,13 +289,13 @@ function saveAMSData(data) {
 
 function getRecentMotorData(ws) {
     const query = "SELECT * FROM motor_data ORDER BY id DESC LIMIT 20";
-    
+
     db.query(query, (err, results) => {
         if (err) {
             console.error("Failed to fetch historical motor data:", err);
             return;
         }
-        
+
         results.reverse().forEach(row => {
             let message;
             if(row.motor_side === 'LEFT') {
@@ -323,13 +314,13 @@ function getRecentMotorData(ws) {
 
 function getRecentSensorData(ws) {
     const query = "SELECT * FROM sensor_data ORDER BY id DESC LIMIT 10";
-    
+
     db.query(query, (err, results) => {
         if (err) {
             console.error("Failed to fetch historical sensor data:", err);
             return;
         }
-        
+
         results.reverse().forEach(row => {
             const message = {
                 sensor_data: row
@@ -351,10 +342,10 @@ const device = awsIot.device({
 // Updated WebSocket connection handler
 wss.on("connection", (ws) => {
     console.log("Client connected");
-    
+
     // Send recent AMS data (existing)
     const amsQuery = "SELECT id as ID, DB_TIME, Teensy_time, TSV, TSC, CON_SRC, CON_SRC_IL, TO_AMS_RELAY, PRE_PLAUS, C_PLUS, C_MINUS, C_PLUS_PLAUS, C_MINUS_PLAUS, GT_60V_PLAUS, PRE_MECH FROM ams_flt ORDER BY id DESC LIMIT 50";
-    
+
     db.query(amsQuery, (err, results) => {
         if (err) {
             console.error("Failed to fetch historical AMS data:", err);
@@ -364,7 +355,7 @@ wss.on("connection", (ws) => {
             });
         }
     });
-    
+
     // Send recent motor and sensor data
     getRecentMotorData(ws);
     getRecentSensorData(ws);
@@ -372,11 +363,11 @@ wss.on("connection", (ws) => {
     ws.on("message", (message) => {
         const messageStr = message.toString();
         console.log("Received from WebSocket client:", messageStr);
-        
+
         // Try to parse the message and check if it's a command
         try {
             const parsed = JSON.parse(messageStr);
-            
+
             // Check if it's a command message
             if (parsed.command) {
                 handleWebSocketCommand(ws, messageStr);
@@ -386,7 +377,7 @@ wss.on("connection", (ws) => {
             // If parsing fails, treat as regular message for broadcasting
             console.log("Message is not JSON, treating as regular broadcast message");
         }
-        
+
         // If not a command, broadcast to all clients (existing functionality)
         broadcast(message);
     });
@@ -412,20 +403,20 @@ device.on('message', (topic, payload) => {
     try {
         const data = JSON.parse(payload.toString());
         console.log('Received MQTT data:', data);
-        
+
         // Reset buffer for new data set
         dataBuffer = {};
         pendingOperations = 0;
-        
+
         // Handle different types of data
         if (data.ams) {
             saveAMSData(data.ams);
         }
-        
+
         if (data.motor) {
             saveMotorData(data.motor);
         }
-        
+
         if (data.sensor) {
             saveSensorData(data.sensor);
         }
@@ -451,11 +442,11 @@ app.post("/data", (req, res) => {
     if (data.ams) {
         saveAMSData(data.ams);
     }
-    
+
     if (data.motor) {
         saveMotorData(data.motor);
     }
-    
+
     if (data.sensor) {
         saveSensorData(data.sensor);
     }
