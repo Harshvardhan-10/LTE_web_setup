@@ -134,7 +134,7 @@ function saveSensorData(data) {
         return;
     }
 
-    const query = "INSERT INTO sensor_data (apps1_raw, apps2_raw, bps2_raw, steer_raw, yaw_rate, acc_y, yaw_ang_acc, acc_x, acc_z, torq_diff, desired_yaw_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const query = "INSERT INTO sensor_data (apps1_raw, apps2_raw, bps2_raw, steer_raw, yaw_rate, acc_y, yaw_ang_acc, acc_x, acc_z, torq_diff, desired_yaw_rate, tv_state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
         data.data[0], // apps1_raw
         data.data[1], // apps2_raw
