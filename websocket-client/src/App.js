@@ -87,7 +87,7 @@ const App = () => {
     return (
       <div className="flex items-center space-x-2">
         <div className={`w-3 h-3 rounded-full ${getStatusColor()} animate-pulse`}></div>
-        <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{label}</span>
+        <span className={`text-sm ${darkMode ? 'text-white' : 'text-white'}`}>{label}</span>
       </div>
     );
   };
