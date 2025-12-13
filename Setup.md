@@ -6,33 +6,39 @@ Tags: LTE
 
 This project implements real-time data transmission from an LTE module to a web application. The LTE module sends data via HTTP POST requests to a backend server hosted on an AWS EC2 instance. The server relays this data to a React-based web application using WebSockets. Additionally, users can interact with the web app through a form to send messages via the same WebSocket. After achieving this, implemented a MySQL database to store the data being received.
 
-## Step 1: Launching an AWS instance
-
-**Create an EC2 Instance**:
+## Step 1: Launching an AWS EC2 instance
 
 - Log in to the AWS Management Console.
 - Go to **EC2** and click **Launch Instance**.
 - Under Name and tags tab, enter a suitable name.
 - Under Application and OS Images (Amazon Machine Image) tab, choose an **Amazon Linux 2023** AMI, whichever is free tier eligible.
 - Under Instance type tab, select a free tier eligible instance type. For our purpose, 2 vCPU & 1 GiB memory instance type suffices(and is cheap) so go ahead with that.
-- Under Key pair (login) tab, select create a new key pair, enter suitable name (this will be the name of the .pem/.ppk file), select RSA key pair type, and choose either private key file format. For simplicity go with .pem, which will avoid you the trouble of setting up PuTTY (though as weird/cute as it may sound). When prompted, store the private key in a secure and accessible location on your computer. You will need it later to connect to your instance.<br>
-Also note that key pair type is how you authenticate to the server, so when you SSH, your terminal shows a server host key fingerprint - that's the key the instance itself uses (not yours). So, even though you picked RSA for your own login key, the instance can still use ED25519 (or ECDSA, or RSA) for its host key - and that's fine.
-**NOTE**: (For windows users only, mac/linux guide soon)
+- Under Key pair (login) tab, select create a new key pair, enter suitable name (this will be the name of the .pem/.ppk file), select RSA key pair type, and choose either private key file format. <br>For simplicity go with .pem, which will avoid you the trouble of setting up PuTTY (though as weird/cute as it may sound). When prompted, store the private key in a secure and accessible location on your computer. You will need it later to connect to your instance.<br><br>
+Also note that key pair type is how you authenticate to the server, so when you SSH, your terminal shows a server host key fingerprint - that's the key the instance itself uses (not yours). So, even though you picked RSA for your own login key, the instance can still use ED25519 (or ECDSA, or RSA) for its host key - and that's fine.<br><br>
+**NOTE FOR THE ABOVE STEP**: (For windows users only, mac/linux guide soon) <br>
 Though the above step is enough I recommend doing the below steps to make an user friendly setup to work in your virtual machine-
-1. Install latest version of PuTTY from [PuTTY website](putty.org).
-2. After installing, open PuTTYgen (not PuTTY, just search PuTTY on windows search bar and in the preview pane click on run PuTTYgen.
-3. Then follow these exact steps:
-	a. Click Load
-	b. Select your .pem file (change file type to All Files)
-	c. (optional but recommended) Enter a passphrase and make sure to note it.
-	d. Click Save private key
-	d. Save it.
-4. This should allow you to connect to SSH via PuTTY as well. Though you can skip that and SSH using powershell since WinSCP would need only the .ppk file.
+	1. Install latest version of PuTTY from [PuTTY website](putty.org).
+	2. After installing, open PuTTYgen (not PuTTY, just search PuTTY on windows search bar and in the preview pane click on run PuTTYgen.
+	3. Then follow these exact steps:
+		1. Click Load
+		2. Select your .pem file (change file type to All Files)
+		3. (optional but recommended) Enter a passphrase and make sure to note it.
+		4. Click Save private key
+		5. Save it.
+	4. This should allow you to connect to SSH via PuTTY as well. Though you can skip that and SSH using powershell since WinSCP would need only the .ppk file.
+	5. Install latest version of WinSCP from [WinSCP website](https://winscp.net/).
+	6. Start WinSCP and configure the following settings:
+		1. File protocol- SFTP
+		2. Host IP- copy the public IP of the instance
+		3. Username- ec2-user
+		4. Click on Advanced and then SSH/Authentication, give the .ppk file made before as the private key file.
+		5. Click OK followed by Save on the main dialogue. Give any suitable sitename and select OK.
+	7. That is it, you are now connected and you can transfer files between you local machine & remoate server, and as well as edit using text files from the interface.
 - Configure the network:
-    - Open **port 22** for SSH. (It is set by default so dont change that)
-    - Open **port 80** (HTTP) and **port 443** (HTTPS) for web access.
-    - Open **port 3000** or any custom port for WebSocket connections.
-- Launch the instance and download the key pair (.pem file) for SSH access.
+	- Open **port 22** for SSH. (It is set by default so dont change that)
+	- Open **port 80** (HTTP) and **port 443** (HTTPS) for web access.
+	- Open **port 3000** or any custom port for WebSocket connections.
+- Launch the instance and download the key pair (.pem file) for SSH access. Make sure only your user has access to the .pem file.
 
 **Connect to the Instance**:
 
@@ -42,28 +48,23 @@ Though the above step is enough I recommend doing the below steps to make an use
     ssh -i your-key.pem ec2-user@<Instance_Public_IP>
     ```
 <br>
-Note: Replace your-key.pem with the pem file generated, if it is not in the current directory where the terminal is opened then you have to give the complete name. Replace ec2-user with the name of image, if you didnt specifically change it then it is set default to ec2-user. Next replace <Instance_Public_IP> with the Public DNS, which can be seen by going to the aws management console and into the instances section and selecting your instance.<br>
+Note: Replace your-key.pem with the pem file generated, if it is not in the current directory where the terminal is opened then you have to give the complete name. Replace ec2-user with the name of image, if you didnt specifically change it then it is set default to ec2-user. Next replace <Instance_Public_IP> with the Public DNS, which can be seen by going to the aws management console and into the instances section and selecting your instance.<br><br>
 (Optional) Verify that the fingerprint in the security alert matches the instance fingerprint contained in the console output when you first start an instance. To get the console output, choose Actions, Monitor and troubleshoot, Get system log. If the fingerprints don't match, someone might be attempting a man-in-the-middle attack. If they match, continue to the next step.
-<br>
+<br><br>
 
-**IMPORTANT**: Make sure to stop the instance whenever you are not using it
+You have now created an EC2 instance, whom you can connect to using SSH, after starting the instance. <br>
+**IMPORTANT**: Make sure to stop the instance whenever you are not using it. You are charged for its runtime (as well as stoptime for storage but less expensive).
     
 
 ## Step 2: Set up Node.js Backend
 
 - **Install Node.js**:
+	- First go to the root directory
     - For Amazon Linux 2:
         
         ```bash
         sudo yum update -y
         sudo yum install -y nodejs npm
-        ```
-        
-    - For Ubuntu:
-        
-        ```bash
-        sudo apt update
-        sudo apt install -y nodejs npm
         ```
         
 - **Create a Node.js WebSocket Server(on the ec2 instance, which you have to SSH into)**:
