@@ -3,22 +3,23 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "aws-iot-device-sdk": "^2.2.15",
     "aws-iot-device-sdk-v2": "^1.21.1",
     "aws-sdk": "^2.1692.0",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2",
+    "express": "^4.22.1",
     "mqtt": "^5.10.3",
     "mysql2": "^3.11.5",
     "pg": "^8.13.1",
     "pm2": "^5.4.3",
-    "ws": "^8.18.0"
-  }
+    "ws": "^8.18.3"
+  },
+  "description": ""
 }
