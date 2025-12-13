@@ -36,7 +36,7 @@ Though the above step is enough I recommend doing the below steps to make an use
 	7. That is it, you are now connected and you can transfer files between you local machine & remoate server, and as well as edit using text files from the interface.
 - Configure the network:
 	- Open **port 22** for SSH. (It is set by default so dont change that)
-	- Open **port 80** (HTTP) and **port 443** (HTTPS) for web access.
+	- Open **port 80** (HTTP) and **port 443** (HTTPS) for web access. (These are set by default so no need to change this)
 	- Open **port 3000** or any custom port for WebSocket connections.
 - Launch the instance and download the key pair (.pem file) for SSH access. Make sure only your user has access to the .pem file.
 
