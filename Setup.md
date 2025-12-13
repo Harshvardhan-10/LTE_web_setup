@@ -27,7 +27,7 @@ Though the above step is enough I recommend doing the below steps to make an use
 	c. (optional but recommended) Enter a passphrase and make sure to note it.
 	d. Click Save private key
 	d. Save it.
-4. 
+4. This should allow you to connect to SSH via PuTTY as well. Though you can skip that and SSH using powershell since WinSCP would need only the .ppk file.
 - Configure the network:
     - Open **port 22** for SSH. (It is set by default so dont change that)
     - Open **port 80** (HTTP) and **port 443** (HTTPS) for web access.
