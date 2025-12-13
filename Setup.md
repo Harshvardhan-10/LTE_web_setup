@@ -37,7 +37,7 @@ Though the above step is enough I recommend doing the below steps to make an use
 - Configure the network:
 	- Open **port 22** for SSH. (It is set by default so dont change that)
 	- Open **port 80** (HTTP) and **port 443** (HTTPS) for web access. (These are set by default so no need to change this)
-	- Open **port 3000** or any custom port for WebSocket connections.
+	- Open **port 3000** or any custom port for WebSocket connections. (Add inbound rule as custom TCP, with source IP as 0.0.0.0/0)
 - Launch the instance and download the key pair (.pem file) for SSH access. Make sure only your user has access to the .pem file.
 
 **Connect to the Instance**:
